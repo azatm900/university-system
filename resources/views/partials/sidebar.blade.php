@@ -1,0 +1,208 @@
+@php
+    $user = auth()->user();
+    $role = $user?->role?->value ?? 'guest';
+
+    // ============================================================
+    // MENU CONFIG — per role
+    // ============================================================
+
+    // Admin: full ordered menu (per user request)
+    $adminMenu = [
+        // 1. التسجيل
+        ['route'=>'registrar.registrations.index','key'=>'registrations','icon'=>'clipboard','match'=>'registrar.registrations.*'],
+        // 2. المالية
+        ['route'=>'finance.invoices.index','key'=>'invoices','icon'=>'receipt','match'=>'finance.invoices.*'],
+        ['route'=>'finance.payments.index','key'=>'payments','icon'=>'wallet','match'=>'finance.payments.*'],
+        // 3. النتائج
+        ['route'=>'results.results.index','key'=>'results','icon'=>'award','match'=>'results.results.*'],
+                ['route'=>'results.sheet.index','key'=>'result_sheet','icon'=>'chart-bar','match'=>'results.sheet.*'],
+                ['route'=>'admin.users.create','key'=>'results_staff','icon'=>'user-plus','match'=>'admin.users.create'],
+        // 4. البرامج
+        ['route'=>'registrar.programs.index','key'=>'programs','icon'=>'library','match'=>'registrar.programs.*'],
+        // 5. المقررات
+        ['route'=>'registrar.courses.index','key'=>'courses','icon'=>'book','match'=>'registrar.courses.*'],
+        // 6. الطلاب
+        ['route'=>'registrar.students.index','key'=>'students','icon'=>'graduation-cap','match'=>'registrar.students.*'],
+    ];
+
+    // Admin bottom group (الإدارة)
+    $adminGroup = [
+        ['route'=>'admin.users.index','key'=>'users','icon'=>'users','match'=>'admin.users.*'],
+        ['route'=>'admin.settings.index','key'=>'settings','icon'=>'settings','match'=>'admin.settings.*'],
+    ];
+
+    // Non-admin roles
+    $roleGroups = [
+        'registrar' => [
+            ['group_key' => 'registrar_group', 'icon' => 'graduation-cap', 'items' => [
+                ['route'=>'registrar.students.index','key'=>'students','icon'=>'graduation-cap','match'=>'registrar.students.*'],
+                ['route'=>'registrar.programs.index','key'=>'programs','icon'=>'library','match'=>'registrar.programs.*'],
+                ['route'=>'registrar.courses.index','key'=>'courses','icon'=>'book','match'=>'registrar.courses.*'],
+                ['route'=>'registrar.registrations.index','key'=>'registrations','icon'=>'clipboard','match'=>'registrar.registrations.*'],
+            ]],
+        ],
+        'finance' => [
+            ['group_key' => 'finance_group', 'icon' => 'wallet', 'items' => [
+                ['route'=>'finance.invoices.index','key'=>'invoices','icon'=>'receipt','match'=>'finance.invoices.*'],
+                ['route'=>'finance.payments.index','key'=>'payments','icon'=>'wallet','match'=>'finance.payments.*'],
+            ]],
+        ],
+        'results' => [
+            ['group_key' => 'results_group', 'icon' => 'award', 'items' => [
+                ['route'=>'results.results.index','key'=>'results','icon'=>'award','match'=>'results.results.*'],
+                ['route'=>'results.sheet.index','key'=>'result_sheet','icon'=>'chart-bar','match'=>'results.sheet.*'],
+                ['route'=>'admin.users.create','key'=>'results_staff','icon'=>'user-plus','match'=>'admin.users.create'],
+            ]],
+        ],
+    ];
+
+    $groups = isset($roleGroups[$role]) ? $roleGroups[$role] : [];
+    $isReportsActive = request()->routeIs('reports.*');
+    $isProfileActive = request()->routeIs('profile.*');
+@endphp
+<aside id="sidebar" class="sidebar">
+    {{-- Brand --}}
+    <div class="sidebar-brand">
+        <img src="{{ asset('images/logo.png') }}" alt="logo">
+        <div class="min-w-0 sidebar-brand-text">
+            <p class="text-sm font-bold leading-tight truncate">{{ __('navigation.university_name') }}</p>
+            <p class="text-xs text-white/60 mt-0.5 truncate">{{ __('navigation.system_name') }}</p>
+        </div>
+    </div>
+
+    {{-- Navigation --}}
+    <nav class="flex-1 min-h-0 px-2.5 py-3 space-y-5 overflow-y-auto sidebar-nav">
+
+        {{-- 1. Home --}}
+        <div>
+            <ul class="space-y-0.5">
+                <li>
+                    <a href="{{ route('dashboard') }}"
+                       class="sidebar-link {{ request()->routeIs('dashboard') ? 'active' : '' }}"
+                       title="{{ __('navigation.dashboard') }}">
+                        <span class="sidebar-icon"><x-icon name="home" :size="18" /></span>
+                        <span class="label">{{ __('navigation.dashboard') }}</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        {{-- 2a. Admin full menu (ordered) --}}
+        @if($role === 'admin')
+            @foreach ($adminMenu as $it)
+                @php $active = request()->routeIs($it['match'] ?? $it['route']) ? 'active' : ''; @endphp
+                <div class="sidebar-section">
+                    <ul class="space-y-0.5">
+                        <li>
+                            <a href="{{ route($it['route']) }}"
+                               class="sidebar-link {{ $active }}"
+                               title="{{ __('navigation.' . $it['key']) }}">
+                                <span class="sidebar-icon"><x-icon :name="$it['icon']" :size="18" /></span>
+                                <span class="label">{{ __('navigation.' . $it['key']) }}</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            @endforeach
+        @endif
+
+        {{-- 2b. Role group (registrar / finance / results) --}}
+        @foreach ($groups as $group)
+            <div class="sidebar-section">
+                <div class="sidebar-group-title">
+                    <span class="sidebar-group-icon"><x-icon :name="$group['icon']" :size="13" :stroke-width="2.2" /></span>
+                    <span>{{ __('navigation.' . $group['group_key']) }}</span>
+                </div>
+                <ul class="space-y-0.5">
+                    @foreach ($group['items'] as $it)
+                        @php $active = request()->routeIs($it['match'] ?? $it['route']) ? 'active' : ''; @endphp
+                        <li>
+                            <a href="{{ route($it['route']) }}"
+                               class="sidebar-link {{ $active }}"
+                               title="{{ __('navigation.' . $it['key']) }}">
+                                <span class="sidebar-icon"><x-icon :name="$it['icon']" :size="18" /></span>
+                                <span class="label">{{ __('navigation.' . $it['key']) }}</span>
+                            </a>
+                        </li>
+                    @endforeach
+                </ul>
+            </div>
+        @endforeach
+
+        {{-- 3. Reports --}}
+        @if(in_array($role, ['admin','registrar','finance','results']))
+            <div class="sidebar-section sidebar-section-reports">
+                <div class="sidebar-group-title">
+                    <span class="sidebar-group-icon"><x-icon name="chart-bar" :size="13" :stroke-width="2.2" /></span>
+                    <span>{{ __('navigation.reports_group') }}</span>
+                </div>
+                <ul class="space-y-0.5">
+                    <li>
+                        <a href="{{ route('reports.index') }}"
+                           class="sidebar-link {{ $isReportsActive ? 'active' : '' }}"
+                           title="{{ __('navigation.reports') }}">
+                            <span class="sidebar-icon"><x-icon name="chart-bar" :size="18" /></span>
+                            <span class="label">{{ __('navigation.reports') }}</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        @endif
+
+        {{-- 4. Bottom section (mt-auto) --}}
+        <div class="mt-auto pt-3 border-t border-white/10 space-y-3">
+
+            {{-- 4a. Admin group (admin only) --}}
+            @if($role === 'admin')
+                <div class="sidebar-section">
+                    <div class="sidebar-group-title">
+                        <span class="sidebar-group-icon"><x-icon name="settings" :size="13" :stroke-width="2.2" /></span>
+                        <span>{{ __('navigation.admin_group') }}</span>
+                    </div>
+                    <ul class="space-y-0.5">
+                        @foreach($adminGroup as $it)
+                            @php $active = request()->routeIs($it['match']) ? 'active' : ''; @endphp
+                            <li>
+                                <a href="{{ route($it['route']) }}"
+                                   class="sidebar-link {{ $active }}"
+                                   title="{{ __('navigation.' . $it['key']) }}">
+                                    <span class="sidebar-icon"><x-icon :name="$it['icon']" :size="18" /></span>
+                                    <span class="label">{{ __('navigation.' . $it['key']) }}</span>
+                                </a>
+                            </li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
+            {{-- 4b. My Profile (all roles) --}}
+            <div class="sidebar-section">
+                <ul class="space-y-0.5">
+                    <li>
+                        <a href="{{ route('profile.edit') }}"
+                           class="sidebar-link {{ $isProfileActive ? 'active' : '' }}"
+                           title="{{ __('navigation.my_profile') }}">
+                            <span class="sidebar-icon"><x-icon name="user" :size="18" /></span>
+                            <span class="label">{{ __('navigation.my_profile') }}</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    {{-- Footer: user details --}}
+    <div class="sidebar-footer flex-shrink-0">
+        <div class="sidebar-footer-content">
+            <div class="sidebar-footer-avatar">{{ mb_strtoupper(mb_substr($user?->name ?? 'U', 0, 1)) }}</div>
+            <div class="sidebar-footer-info min-w-0">
+                <p class="text-xs font-semibold text-white/90 truncate">{{ $user?->name }}</p>
+                <p class="text-[10px] text-white/60 truncate">{{ $user?->email }}</p>
+                <p class="text-[10px] text-white/50 truncate">
+                    <x-icon name="award" :size="10" class="inline" />
+                    {{ $user?->role?->label() }}
+                </p>
+            </div>
+        </div>
+    </div>
+</aside>

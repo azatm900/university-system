@@ -1,0 +1,122 @@
+@extends('layouts.app')
+
+@section('title', __('invoices.title'))
+
+@section('content')
+<x-page-header :title="__('invoices.title')" :subtitle="__('invoices.subtitle')">
+    <x-button variant="primary" :href="route('finance.invoices.create')">
+        <x-icon name="plus" :size="16" /> {{ __('invoices.actions.create') }}
+    </x-button>
+</x-page-header>
+
+<x-card class="mb-4">
+    <form method="GET" action="{{ route('finance.invoices.index') }}" class="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <div>
+            <label class="block text-sm mb-1">{{ __('invoices.filters.search') }}</label>
+            <input type="text" name="search" value="{{ request('search') }}" class="input" placeholder="{{ __('invoices.filters.search_placeholder') }}">
+        </div>
+        <div>
+            <label class="block text-sm mb-1">رقم النظام</label>
+            <input type="text" name="student_number" value="{{ request('student_number') }}" class="input font-mono" placeholder="2026140001" maxlength="20">
+        </div>
+        <div>
+            <label class="block text-sm mb-1">{{ __('invoices.fields.status') }}</label>
+            <select name="status" class="input">
+                <option value="">{{ __('invoices.filters.all') }}</option>
+                @foreach(\App\Enums\InvoiceStatus::cases() as $case)
+                    <option value="{{ $case->value }}" @selected(request('status') === $case->value)>{{ __('invoices.statuses.' . $case->value) }}</option>
+                @endforeach
+            </select>
+        </div>
+        <div>
+            <label class="block text-sm mb-1">{{ __('invoices.fields.semester') }}</label>
+            <select name="semester_id" class="input">
+                <option value="">{{ __('invoices.filters.all') }}</option>
+                @foreach($semesters as $s)
+                    <option value="{{ $s->id }}" @selected(request('semester_id') == $s->id)>{{ $s->name }}</option>
+                @endforeach
+            </select>
+        </div>
+        <div>
+            <label class="block text-sm mb-1">{{ __('invoices.fields.student') }}</label>
+            <select name="student_id" class="input">
+                <option value="">{{ __('invoices.filters.all') }}</option>
+                @foreach($students as $st)
+                    <option value="{{ $st->id }}" @selected(request('student_id') == $st->id)>
+                        {{ $st->user?->name ?? ('#' . $st->id) }} — {{ $st->student_number }}
+                    </option>
+                @endforeach
+            </select>
+        </div>
+        <div class="md:col-span-4 flex gap-2">
+            <x-button type="submit" variant="primary" size="sm">
+                <x-icon name="search" :size="16" /> {{ __('invoices.filters.search') }}
+            </x-button>
+            <x-button variant="secondary" size="sm" :href="route('finance.invoices.index')">
+                {{ __('invoices.actions.cancel') }}
+            </x-button>
+        </div>
+    </form>
+</x-card>
+
+<x-table-wrapper>
+    @if($invoices->isEmpty())
+        <x-empty-state icon="🧾" :title="__('invoices.empty.title')" :description="__('invoices.empty.description')" />
+    @else
+        <table class="table w-full">
+            <thead>
+                <tr>
+                    <th>{{ __('invoices.fields.invoice_number') }}</th>
+                    <th>رقم النظام</th>
+                    <th>{{ __('invoices.fields.student') }}</th>
+                    <th>{{ __('invoices.fields.semester') }}</th>
+                    <th>{{ __('invoices.fields.total') }}</th>
+                    <th>{{ __('invoices.fields.paid_amount') }}</th>
+                    <th>{{ __('invoices.fields.remaining') }}</th>
+                    <th>{{ __('invoices.fields.status') }}</th>
+                    <th>{{ __('invoices.fields.due_date') }}</th>
+                    <th>{{ __('invoices.actions.view') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($invoices as $invoice)
+                    @php
+                        $total = (float) $invoice->total;
+                        $paid = (float) $invoice->paid_amount;
+                        $remaining = $total - $paid;
+                        $statusValue = $invoice->status?->value ?? 'unpaid';
+                    @endphp
+                    <tr>
+                        <td class="font-mono text-sm">{{ $invoice->invoice_number }}</td>
+                        <td class="font-mono text-sm">{{ $invoice->student?->student_number ?? '-' }}</td>
+                        <td>{{ $invoice->student?->user?->name ?? '-' }}</td>
+                        <td>{{ $invoice->semester?->name ?? '-' }}</td>
+                        <td class="font-mono">{{ number_format($total, 2) }}</td>
+                        <td class="font-mono text-green-600">{{ number_format($paid, 2) }}</td>
+                        <td class="font-mono {{ $remaining > 0 ? 'text-red-600' : 'text-gray-400' }}">{{ number_format($remaining, 2) }}</td>
+                        <td>
+                            <x-badge :color="match($statusValue) { 'paid' => 'success', 'partial' => 'warning', 'cancelled' => 'danger', default => 'info' }">
+                                {{ __('invoices.statuses.' . $statusValue) }}
+                            </x-badge>
+                        </td>
+                        <td>{{ $invoice->due_date?->format('Y-m-d') ?? '-' }}</td>
+                        <td>
+                            <div class="flex items-center gap-1">
+                                <x-button variant="secondary" size="sm" :href="route('finance.invoices.show', $invoice)">
+                                    <x-icon name="eye" :size="16" />
+                                </x-button>
+                                @if($statusValue !== 'cancelled')
+                                    <x-button variant="secondary" size="sm" :href="route('finance.invoices.edit', $invoice)">
+                                        <x-icon name="pencil" :size="16" />
+                                    </x-button>
+                                @endif
+                            </div>
+                        </td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+        <x-slot name="footer">{{ $invoices->links() }}</x-slot>
+    @endif
+</x-table-wrapper>
+@endsection

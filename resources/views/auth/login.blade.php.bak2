@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تسجيل الدخول — جامعة العلوم الصحية</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        maroon: { 50:'#f0fdfa',100:'#ccfbf1',200:'#99f6e4',300:'#5eead4',400:'#2dd4bf',500:'#14b8a6',600:'#0d9488',700:'#0f766e',800:'#115e59',900:'#134e4a' },,,
+                        gold: { 400:'#d4af37', 500:'#c5a028' },
+                    },
+                    fontFamily: { sans: ['Cairo', 'sans-serif'] },
+                    animation: {
+                        'fade-in': 'fadeIn 0.8s ease-out',
+                        'slide-up': 'slideUp 0.8s ease-out',
+                        'shake': 'shake 0.5s ease-in-out',
+                        'float': 'float 6s ease-in-out infinite',
+                    },
+                    keyframes: {
+                        fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+                        slideUp: { '0%': { opacity: '0', transform: 'translateY(30px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
+                        shake: { '0%, 100%': { transform: 'translateX(0)' }, '25%': { transform: 'translateX(-5px)' }, '75%': { transform: 'translateX(5px)' } },
+                        float: { '0%, 100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-10px)' } },
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Cairo', sans-serif; }
+        .bg-pattern {
+            background-image: radial-gradient(circle at 20% 50%, rgba(255,255,255,0.05) 0%, transparent 50%),
+                              radial-gradient(circle at 80% 80%, rgba(255,255,255,0.05) 0%, transparent 50%);
+        }
+        .input-focus { transition: all 0.3s ease; }
+        .input-focus:focus-within {
+            box-shadow: 0 0 0 3px rgba(123, 30, 58, 0.1);
+            border-color: #7B1E3A;
+        }
+        .btn-loading { pointer-events: none; opacity: 0.7; }
+        .form-panel::-webkit-scrollbar { width: 6px; }
+        .form-panel::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+        @media (max-height: 700px) {
+            .compact { padding-top: 1rem !important; padding-bottom: 1rem !important; }
+            .compact h2 { font-size: 1.5rem !important; }
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gray-50">
+    <div class="flex min-h-screen lg:flex-row-reverse">
+        <!-- Right Panel: Brand (RTL) -->
+        <div class="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-maroon-900 via-maroon-800 to-maroon-700 relative overflow-hidden items-center justify-center p-12">
+            <div class="absolute inset-0 bg-pattern"></div>
+            <div class="absolute top-10 right-10 w-32 h-32 bg-white/5 rounded-full blur-xl animate-float"></div>
+            <div class="absolute bottom-20 left-10 w-40 h-40 bg-white/5 rounded-full blur-xl animate-float" style="animation-delay: 2s;"></div>
+            <div class="absolute top-1/2 left-1/4 w-24 h-24 bg-white/5 rounded-full blur-xl animate-float" style="animation-delay: 4s;"></div>
+
+            <div class="relative z-10 text-center animate-slide-up">
+                <div class="mb-8 inline-block p-4 bg-white rounded-full shadow-2xl">
+                    <img src="{{ asset('images/logo.png') }}" alt="شعار جامعة العلوم الصحية" class="w-40 h-40 object-contain">
+                </div>
+                <h1 class="text-4xl font-extrabold text-white mb-4">جامعة العلوم الصحية</h1>
+                <p class="text-lg text-maroon-100 mb-2">University of Health Sciences</p>
+                <div class="w-24 h-1 bg-gold-400 mx-auto my-6 rounded-full"></div>
+                <p class="text-maroon-200 text-lg">نبني أطباء المستقبل</p>
+                <p class="text-maroon-300 text-sm mt-2">التميز في التعليم الصحي</p>
+            </div>
+        </div>
+
+        <!-- Left Panel: Form -->
+        <div class="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12 form-panel overflow-y-auto">
+            <div class="w-full max-w-md animate-fade-in">
+                <div class="lg:hidden text-center mb-8">
+                    <div class="inline-block p-3 bg-white rounded-full shadow-lg mb-4">
+                        <img src="{{ asset('images/logo.png') }}" alt="شعار الجامعة" class="w-24 h-24 object-contain">
+                    </div>
+                    <h1 class="text-2xl font-bold text-maroon-800">جامعة العلوم الصحية</h1>
+                    <p class="text-sm text-gray-500 mt-1">University of Health Sciences</p>
+                </div>
+
+                <div class="text-center mb-8">
+                    <h2 class="text-3xl font-bold text-gray-800">مرحبًا بعودتك</h2>
+                    <p class="text-gray-500 mt-2">سجّل الدخول للمتابعة إلى النظام</p>
+                </div>
+
+                @if (isset($errors) && $errors->any())
+                    <div class="mb-6 p-4 rounded-xl bg-red-50 border-r-4 border-red-500 text-red-800 text-sm animate-shake">
+                        @foreach ($errors->all() as $err)
+                            <p class="flex items-center gap-2">
+                                <svg class="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+                                {{ $err }}
+                            </p>
+                        @endforeach
+                    </div>
+                @endif
+
+                @if (session('status'))
+                    <div class="mb-6 p-4 rounded-xl bg-green-50 border-r-4 border-green-500 text-green-800 text-sm">
+                        {{ session('status') }}
+                    </div>
+                @endif
+
+                <form method="POST" action="{{ route('login.attempt') }}" class="space-y-5" id="loginForm">
+                    @csrf
+
+                    <div>
+                        <label for="email" class="block text-sm font-semibold text-gray-700 mb-2">البريد الإلكتروني</label>
+                        <div class="relative input-focus rounded-xl border border-gray-300 bg-white">
+                            <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"/></svg>
+                            </div>
+                            <input id="email" name="email" type="email" value="{{ old('email') }}" required autofocus autocomplete="username"
+                                   class="w-full py-3 pr-10 pl-4 bg-transparent border-none outline-none text-gray-800 placeholder-gray-400 rounded-xl"
+                                   placeholder="name@university.edu">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label for="password" class="block text-sm font-semibold text-gray-700 mb-2">كلمة المرور</label>
+                        <div class="relative input-focus rounded-xl border border-gray-300 bg-white">
+                            <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                            </div>
+                            <input id="password" name="password" type="password" required autocomplete="current-password"
+                                   class="w-full py-3 pr-10 pl-12 bg-transparent border-none outline-none text-gray-800 placeholder-gray-400 rounded-xl"
+                                   placeholder="••••••••">
+                            <button type="button" onclick="togglePassword()" class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400 hover:text-maroon-700 transition">
+                                <svg id="eyeIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" name="remember" id="remember" value="1" class="w-4 h-4 text-maroon-700 border-gray-300 rounded focus:ring-maroon-500">
+                            <span class="text-sm text-gray-600">تذكرني</span>
+                        </label>
+                        <a href="#" class="text-sm text-maroon-700 hover:text-maroon-900 font-semibold transition">نسيت كلمة المرور؟</a>
+                    </div>
+
+                    <button type="submit" id="submitBtn"
+                            class="w-full bg-gradient-to-l from-maroon-800 to-maroon-700 hover:from-maroon-700 hover:to-maroon-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-maroon-800/30 hover:shadow-maroon-800/50 transform hover:-translate-y-0.5 transition-all duration-300 flex items-center justify-center gap-2">
+                        <span id="btnText">تسجيل الدخول</span>
+                        <svg id="btnSpinner" class="hidden w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    </button>
+                </form>
+
+                <div class="mt-10 text-center">
+                    <div class="flex items-center justify-center gap-2 text-xs text-gray-400">
+                        <span class="w-8 h-px bg-gray-300"></span>
+                        <span>تصميم وتطوير</span>
+                        <span class="w-8 h-px bg-gray-300"></span>
+                    </div>
+                    <p class="mt-2 text-sm font-semibold text-gray-500">
+                        <span class="text-maroon-800">شارك</span> تكنولوجي
+                    </p>
+                    <p class="text-xs text-gray-400 mt-1">© {{ date('Y') }} جامعة العلوم الصحية — v1.0</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function togglePassword() {
+            const input = document.getElementById('password');
+            const icon = document.getElementById('eyeIcon');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>';
+            } else {
+                input.type = 'password';
+                icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>';
+            }
+        }
+
+        document.getElementById('loginForm').addEventListener('submit', function() {
+            const btn = document.getElementById('submitBtn');
+            const txt = document.getElementById('btnText');
+            const spinner = document.getElementById('btnSpinner');
+            btn.classList.add('btn-loading');
+            txt.textContent = 'جارٍ التحقق...';
+            spinner.classList.remove('hidden');
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,220 @@
+# ═══════════════════════════════════════════════════════════
+# G4-fix.ps1 (v2) — دمج stats في lang/dashboard + فحص common.view
+# ═══════════════════════════════════════════════════════════
+
+$ErrorActionPreference = "Continue"
+$projectRoot = "C:\Users\maham\Herd\university-system"
+Set-Location $projectRoot
+
+Write-Host "=== G4-fix v2 — دمج stats في lang/dashboard ===" -ForegroundColor Cyan
+Write-Host ""
+
+$arDashboard = Join-Path $projectRoot "lang\ar\dashboard.php"
+$enDashboard = Join-Path $projectRoot "lang\en\dashboard.php"
+$arCommon    = Join-Path $projectRoot "lang\ar\common.php"
+$enCommon    = Join-Path $projectRoot "lang\en\common.php"
+$dashView    = Join-Path $projectRoot "resources\views\dashboard\index.blade.php"
+
+# ── 0) فحص المسارات ──
+$missing = @()
+if (-not (Test-Path $arDashboard)) { $missing += $arDashboard }
+if (-not (Test-Path $enDashboard)) { $missing += $enDashboard }
+if ($missing.Count -gt 0) {
+    Write-Host "ملفات مفقودة:" -ForegroundColor Red
+    foreach ($m in $missing) { Write-Host "  - $m" -ForegroundColor Red }
+    return
+}
+Write-Host "[OK] الملفات الأساسية موجودة" -ForegroundColor Green
+
+# ── 1) Backup ──
+$arBak = "$arDashboard.bak-g4fix"
+$enBak = "$enDashboard.bak-g4fix"
+if (-not (Test-Path $arBak)) { Copy-Item $arDashboard $arBak -Force; Write-Host "[OK] Backup AR" -ForegroundColor Green }
+else { Write-Host "[i] Backup AR موجود" -ForegroundColor Yellow }
+if (-not (Test-Path $enBak)) { Copy-Item $enDashboard $enBak -Force; Write-Host "[OK] Backup EN" -ForegroundColor Green }
+else { Write-Host "[i] Backup EN موجود" -ForegroundColor Yellow }
+
+# ── 2) دمج stats في AR ──
+Write-Host ""
+Write-Host "--- AR: دمج stats ---" -ForegroundColor Cyan
+$arContent = [IO.File]::ReadAllText($arDashboard, [Text.Encoding]::UTF8)
+
+if ($arContent -match "'stats'\s*=>") {
+    Write-Host "[i] 'stats' موجود مسبقًا في AR - تخطي" -ForegroundColor Yellow
+} else {
+    $arLines = @(
+        "",
+        "    // G4-fix: dashboard stats keys",
+        "    'stats' => [",
+        "        'users'           => 'المستخدمون',",
+        "        'students'        => 'الطلاب',",
+        "        'active_students' => 'طلاب نشطون',",
+        "        'courses'         => 'المقررات',",
+        "        'programs'        => 'البرامج',",
+        "        'registrations'   => 'التسجيلات',",
+        "        'unpaid_invoices' => 'فواتير غير مدفوعة',",
+        "        'paid_invoices'   => 'فواتير مدفوعة',",
+        "        'payments_total'  => 'إجمالي المدفوعات',",
+        "        'invoices_total'  => 'إجمالي الفواتير',",
+        "    ],"
+    )
+    $arStatsBlock = ($arLines -join "`r`n") + "`r`n"
+    $arNewContent = $arContent -replace "(?s)(\r?\n)(\]\s*;\s*)$", "`$1$arStatsBlock`$1`$2"
+    if ($arNewContent -eq $arContent) {
+        Write-Host "[!] لم ينجح الاستبدال في AR - تحقق يدوي" -ForegroundColor Yellow
+    } else {
+        [IO.File]::WriteAllText($arDashboard, $arNewContent, (New-Object System.Text.UTF8Encoding($false)))
+        Write-Host "[OK] تم دمج 'stats' في AR" -ForegroundColor Green
+    }
+}
+
+# ── 3) دمج stats في EN ──
+Write-Host ""
+Write-Host "--- EN: دمج stats ---" -ForegroundColor Cyan
+$enContent = [IO.File]::ReadAllText($enDashboard, [Text.Encoding]::UTF8)
+
+if ($enContent -match "'stats'\s*=>") {
+    Write-Host "[i] 'stats' موجود مسبقًا في EN - تخطي" -ForegroundColor Yellow
+} else {
+    $enLines = @(
+        "",
+        "    // G4-fix: dashboard stats keys",
+        "    'stats' => [",
+        "        'users'           => 'Users',",
+        "        'students'        => 'Students',",
+        "        'active_students' => 'Active Students',",
+        "        'courses'         => 'Courses',",
+        "        'programs'        => 'Programs',",
+        "        'registrations'   => 'Registrations',",
+        "        'unpaid_invoices' => 'Unpaid Invoices',",
+        "        'paid_invoices'   => 'Paid Invoices',",
+        "        'payments_total'  => 'Payments Total',",
+        "        'invoices_total'  => 'Invoices Total',",
+        "    ],"
+    )
+    $enStatsBlock = ($enLines -join "`r`n") + "`r`n"
+    $enNewContent = $enContent -replace "(?s)(\r?\n)(\]\s*;\s*)$", "`$1$enStatsBlock`$1`$2"
+    if ($enNewContent -eq $enContent) {
+        Write-Host "[!] لم ينجح الاستبدال في EN - تحقق يدوي" -ForegroundColor Yellow
+    } else {
+        [IO.File]::WriteAllText($enDashboard, $enNewContent, (New-Object System.Text.UTF8Encoding($false)))
+        Write-Host "[OK] تم دمج 'stats' في EN" -ForegroundColor Green
+    }
+}
+
+# ── 4) php -l + rollback ──
+Write-Host ""
+Write-Host "--- فحص syntax ---" -ForegroundColor Cyan
+$arLint = (& php -l $arDashboard 2>&1) -join " "
+$enLint = (& php -l $enDashboard 2>&1) -join " "
+Write-Host "AR: $arLint" -ForegroundColor Gray
+Write-Host "EN: $enLint" -ForegroundColor Gray
+
+$arFail = $arLint -match "Parse error"
+$enFail = $enLint -match "Parse error"
+
+if ($arFail -or $enFail) {
+    Write-Host "[X] فشل syntax - rollback" -ForegroundColor Red
+    if (Test-Path $arBak) { Copy-Item $arBak $arDashboard -Force; Write-Host "[<<] AR استُرجع" -ForegroundColor Yellow }
+    if (Test-Path $enBak) { Copy-Item $enBak $enDashboard -Force; Write-Host "[<<] EN استُرجع" -ForegroundColor Yellow }
+    return
+}
+Write-Host "[OK] syntax سليم" -ForegroundColor Green
+
+# ── 5) فحص common.view ──
+Write-Host ""
+Write-Host "--- فحص common.view ---" -ForegroundColor Cyan
+if (-not (Test-Path $dashView)) {
+    Write-Host "[!] dashboard/index.blade.php مفقود" -ForegroundColor Yellow
+} else {
+    $viewContent = [IO.File]::ReadAllText($dashView, [Text.Encoding]::UTF8)
+    $usesCommonView = $viewContent -match "__\(\s*'common\.view'\s*\)"
+
+    if (-not $usesCommonView) {
+        Write-Host "[i] لا يستخدم common.view - لا إجراء" -ForegroundColor Gray
+    } else {
+        Write-Host "[?] يستخدم common.view - فحص common.php" -ForegroundColor Yellow
+        $arHasView = $false
+        $enHasView = $false
+        if (Test-Path $arCommon) {
+            $c = [IO.File]::ReadAllText($arCommon, [Text.Encoding]::UTF8)
+            if ($c -match "'view'\s*=>") { $arHasView = $true }
+        }
+        if (Test-Path $enCommon) {
+            $c = [IO.File]::ReadAllText($enCommon, [Text.Encoding]::UTF8)
+            if ($c -match "'view'\s*=>") { $enHasView = $true }
+        }
+        if ($arHasView -and $enHasView) {
+            Write-Host "[OK] 'view' موجود في common.php" -ForegroundColor Green
+        } else {
+            Write-Host "[!] 'view' مفقود - استبدال بـ common.edit" -ForegroundColor Yellow
+            $viewBak = "$dashView.bak-g4fix"
+            if (-not (Test-Path $viewBak)) { Copy-Item $dashView $viewBak -Force }
+            $newView = $viewContent -replace "__\(\s*'common\.view'\s*\)", "__('common.edit')"
+            [IO.File]::WriteAllText($dashView, $newView, (New-Object System.Text.UTF8Encoding($false)))
+            Write-Host "[OK] تم الاستبدال" -ForegroundColor Green
+        }
+    }
+}
+
+# ── 6) cache clear ──
+Write-Host ""
+Write-Host "--- cache clear ---" -ForegroundColor Cyan
+$vc = (& php artisan view:clear 2>&1) -join " "
+$cc = (& php artisan config:clear 2>&1) -join " "
+Write-Host "view:clear   -> $vc" -ForegroundColor Gray
+Write-Host "config:clear -> $cc" -ForegroundColor Gray
+
+# ── 7) تحقق نهائي ──
+Write-Host ""
+Write-Host "--- تحقق نهائي ---" -ForegroundColor Cyan
+$arFinal = [IO.File]::ReadAllText($arDashboard, [Text.Encoding]::UTF8)
+$enFinal = [IO.File]::ReadAllText($enDashboard, [Text.Encoding]::UTF8)
+
+$checks = @(
+    @{ N = "AR 'stats'";            Ok = ($arFinal -match "'stats'\s*=>") },
+    @{ N = "AR 'users'";            Ok = ($arFinal -match "'users'") },
+    @{ N = "AR 'payments_total'";   Ok = ($arFinal -match "'payments_total'") },
+    @{ N = "EN 'stats'";            Ok = ($enFinal -match "'stats'\s*=>") },
+    @{ N = "EN 'users'";            Ok = ($enFinal -match "'users'") },
+    @{ N = "EN 'invoices_total'";   Ok = ($enFinal -match "'invoices_total'") }
+)
+$allOk = $true
+foreach ($c in $checks) {
+    if ($c.Ok) { Write-Host "[OK] $($c.N)" -ForegroundColor Green }
+    else { Write-Host "[X] $($c.N)" -ForegroundColor Red; $allOk = $false }
+}
+
+# ── 8) verify checklist ──
+Write-Host ""
+Write-Host "=== Verify Checklist (6 اختبارات) ===" -ForegroundColor Cyan
+Write-Host "php artisan serve  ->  http://127.0.0.1:8000" -ForegroundColor White
+Write-Host ""
+Write-Host "[1] admin@demo.local / password" -ForegroundColor White
+Write-Host "    4 بطاقات: Users / Students / Unpaid Invoices / Payments Total"
+Write-Host "    يظهر: أحدث الطلاب + إجراءات سريعة"
+Write-Host "    sidebar: الرئيسية / معلوماتي / الإدارة / تقارير"
+Write-Host "    لا يظهر: registrar/finance/results"
+Write-Host "    [!] اضغط بطاقة Students - هل 403؟"
+Write-Host ""
+Write-Host "[2] registrar@demo.local" -ForegroundColor White
+Write-Host "    Students / Active Students / Programs / Registrations"
+Write-Host "    sidebar: الرئيسية / معلوماتي / التسجيل / تقارير"
+Write-Host ""
+Write-Host "[3] finance@demo.local" -ForegroundColor White
+Write-Host "    Unpaid / Paid Invoices / Payments Total / Invoices Total"
+Write-Host "    لا أحدث طلاب | sidebar: المالية"
+Write-Host ""
+Write-Host "[4] results@demo.local" -ForegroundColor White
+Write-Host "    Students / Courses / Registrations / Programs"
+Write-Host "    sidebar: النتائج"
+Write-Host ""
+Write-Host "[5] أي دور: sidebar footer = name + email + role (3 أسطر)"
+Write-Host "[6] معلوماتي -> /profile (صفحة G1)"
+Write-Host ""
+
+if ($allOk) {
+    Write-Host "=== G4-fix اكتمل - انتقل للاختبارات اليدوية ===" -ForegroundColor Green
+} else {
+    Write-Host "=== [!] بعض الفحوصات فشلت - راجع التقرير ===" -ForegroundColor Yellow
+}

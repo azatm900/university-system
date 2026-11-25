@@ -1,0 +1,91 @@
+@extends('layouts.app')
+@section('title', __('dashboard.title'))
+@section('subtitle', __('dashboard.welcome') . ', ' . (auth()->user()?->name ?? '') . ' 👋')
+
+@section('content')
+    @php $role = auth()->user()?->role?->value ?? 'guest'; @endphp
+
+    <div class="stats-grid animate-fade-in-up">
+        <x-stat-card
+            :label="__('dashboard.students')"
+            :value="number_format($stats['students_count'])"
+            icon-name="graduation-cap"
+            color="brand"
+            :href="route('registrar.students.index')" />
+        <x-stat-card
+            :label="__('dashboard.courses')"
+            :value="number_format($stats['courses_count'])"
+            icon-name="book"
+            color="info"
+            :href="route('registrar.courses.index')" />
+        <x-stat-card
+            :label="__('dashboard.registrations')"
+            :value="number_format($stats['registrations_count'])"
+            icon-name="clipboard"
+            color="success"
+            :href="route('registrar.registrations.index')" />
+        <x-stat-card
+            :label="__('dashboard.unpaid_invoices')"
+            :value="number_format($stats['unpaid_invoices'])"
+            icon-name="receipt"
+            color="warning"
+            :href="route('finance.invoices.index')" />
+        <x-stat-card
+            :label="__('dashboard.pending_payments')"
+            :value="number_format($stats['pending_payments'])"
+            icon-name="wallet"
+            color="danger"
+            :href="route('finance.payments.index')" />
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 animate-fade-in-up" style="animation-delay:0.08s">
+        @if(in_array($role, ['admin','registrar']))
+            <x-card :title="__('dashboard.recent_activity')">
+                @if($recentStudents->isEmpty())
+                    <x-empty-state icon="📭" :message="__('dashboard.no_activity')" />
+                @else
+                    <ul class="divide-y divide-[var(--border)] -mx-1">
+                        @foreach($recentStudents as $s)
+                            <li class="py-2.5 px-1 flex items-center gap-3">
+                                <div class="avatar-circle avatar-sm">{{ mb_strtoupper(mb_substr($s->name ?? $s->full_name ?? 'S', 0, 1)) }}</div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-semibold truncate">{{ $s->name ?? $s->full_name ?? ('#' . $s->id) }}</p>
+                                    <p class="text-xs text-muted flex items-center gap-1">
+                                        <x-icon name="clock" :size="11" />
+                                        {{ $s->created_at?->diffForHumans() ?? '' }}
+                                    </p>
+                                </div>
+                                <a href="{{ route('registrar.students.show', $s) }}" class="icon-btn" title="{{ __('common.edit') }}">
+                                    <x-icon name="eye" :size="16" />
+                                </a>
+                            </li>
+                        @endforeach
+                    </ul>
+                @endif
+            </x-card>
+        @endif
+
+        <x-card :title="__('dashboard.quick_actions')">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                @if(in_array($role, ['admin','registrar']))
+                    <a href="{{ route('registrar.students.create') }}" class="btn btn-primary">
+                        <x-icon name="plus" :size="16" /> {{ __('common.create') }} {{ __('navigation.students') }}
+                    </a>
+                    <a href="{{ route('registrar.registrations.create') }}" class="btn btn-secondary">
+                        <x-icon name="clipboard" :size="16" /> {{ __('common.create') }} {{ __('navigation.registrations') }}
+                    </a>
+                @endif
+                @if(in_array($role, ['admin','finance']))
+                    <a href="{{ route('finance.invoices.create') }}" class="btn btn-secondary">
+                        <x-icon name="receipt" :size="16" /> {{ __('common.create') }} {{ __('navigation.invoices') }}
+                    </a>
+                @endif
+                @if(in_array($role, ['admin','registrar','finance','results']))
+                    <a href="{{ route('reports.index') }}" class="btn btn-secondary">
+                        <x-icon name="chart-bar" :size="16" /> {{ __('navigation.reports') }}
+                    </a>
+                @endif
+            </div>
+        </x-card>
+    </div>
+@endsection

@@ -1,0 +1,49 @@
+@extends('layouts.app')
+@section('title', 'عرض فاتورة')
+@section('content')
+<div class="space-y-4 max-w-3xl mx-auto">
+    <div class="card p-6">
+        <div class="flex justify-between items-start border-b pb-3 mb-3">
+            <div>
+                <h3 class="font-semibold text-lg font-mono">{{ $invoice->invoice_number }}</h3>
+                <p class="text-sm text-gray-500">{{ $invoice->description }}</p>
+            </div>
+            <span class="text-sm">@include('partials.enum-label', ['value' => $invoice->status])</span>
+        </div>
+        <dl class="grid grid-cols-3 gap-y-2 text-sm">
+            <dt class="text-gray-500">الطالب</dt><dd class="col-span-2">{{ $invoice->student?->user?->name ?? '—' }}</dd>
+            <dt class="text-gray-500">الفصل</dt><dd class="col-span-2">{{ $invoice->semester?->name ?? '—' }}</dd>
+            <dt class="text-gray-500">المبلغ</dt><dd class="col-span-2">{{ number_format((float) $invoice->amount, 2) }}</dd>
+            <dt class="text-gray-500">الخصم</dt><dd class="col-span-2">{{ number_format((float) $invoice->discount, 2) }}</dd>
+            <dt class="text-gray-500">الإجمالي</dt><dd class="col-span-2 font-semibold">{{ number_format((float) $invoice->total, 2) }}</dd>
+            <dt class="text-gray-500">المدفوع</dt><dd class="col-span-2 text-green-700">{{ number_format((float) $invoice->paid_amount, 2) }}</dd>
+            <dt class="text-gray-500">المتبقي</dt><dd class="col-span-2 text-red-700">{{ number_format((float) $invoice->total - (float) $invoice->paid_amount, 2) }}</dd>
+            <dt class="text-gray-500">تاريخ الاستحقاق</dt><dd class="col-span-2">{{ $invoice->due_date }}</dd>
+        </dl>
+        <div class="flex gap-2 pt-3 border-t mt-3">
+            <a href="{{ route('finance.invoices.edit', $invoice) }}" class="btn-primary">تعديل</a>
+            <a href="{{ route('finance.payments.create') }}?invoice_id={{ $invoice->id }}" class="btn-secondary">+ دفعة جديدة</a>
+            <a href="{{ route('finance.invoices.index') }}" class="btn-secondary">رجوع</a>
+        </div>
+    </div>
+    <div class="card overflow-hidden">
+        <div class="p-4 border-b"><h3 class="font-semibold text-maroon-800">الدفعات</h3></div>
+        <table class="w-full table-rh">
+            <thead><tr><th>#</th><th>المبلغ</th><th>التاريخ</th><th>الطريقة</th><th>المرجع</th></tr></thead>
+            <tbody>
+            @forelse (($invoice->payments ?? collect()) as $py)
+                <tr>
+                    <td>{{ $py->id }}</td>
+                    <td>{{ number_format((float) $py->amount, 2) }}</td>
+                    <td>{{ $py->payment_date }}</td>
+                    <td>@include('partials.enum-label', ['value' => $py->method])</td>
+                    <td>{{ $py->reference_number ?? '—' }}</td>
+                </tr>
+            @empty
+                <tr><td colspan="5" class="text-center text-gray-500 py-4">لا توجد دفعات</td></tr>
+            @endforelse
+            </tbody>
+        </table>
+    </div>
+</div>
+@endsection

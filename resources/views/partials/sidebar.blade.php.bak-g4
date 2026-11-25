@@ -1,0 +1,119 @@
+@php
+    $role = auth()->user()?->role?->value ?? 'guest';
+    $navGroups = [
+        'admin' => [
+            ['group_key' => 'admin_group', 'icon' => 'users', 'items' => [
+                ['route'=>'admin.users.index','key'=>'users','icon'=>'users','match'=>'admin.users.*'],
+                ['route'=>'admin.settings.index','key'=>'settings','icon'=>'settings','match'=>'admin.settings.*'],
+            ]],
+        ],
+        'registrar' => [
+            ['group_key' => 'registrar_group', 'icon' => 'graduation-cap', 'items' => [
+                ['route'=>'registrar.students.index','key'=>'students','icon'=>'graduation-cap','match'=>'registrar.students.*'],
+                ['route'=>'registrar.programs.index','key'=>'programs','icon'=>'library','match'=>'registrar.programs.*'],
+                ['route'=>'registrar.courses.index','key'=>'courses','icon'=>'book','match'=>'registrar.courses.*'],
+                ['route'=>'registrar.registrations.index','key'=>'registrations','icon'=>'clipboard','match'=>'registrar.registrations.*'],
+            ]],
+        ],
+        'finance' => [
+            ['group_key' => 'finance_group', 'icon' => 'wallet', 'items' => [
+                ['route'=>'finance.invoices.index','key'=>'invoices','icon'=>'receipt','match'=>'finance.invoices.*'],
+                ['route'=>'finance.payments.index','key'=>'payments','icon'=>'wallet','match'=>'finance.payments.*'],
+            ]],
+        ],
+        'results' => [
+            ['group_key' => 'results_group', 'icon' => 'award', 'items' => [
+                ['route'=>'results.results.index','key'=>'results','icon'=>'award','match'=>'results.results.*'],
+            ]],
+        ],
+    ];
+    $groups = [];
+    if ($role === 'admin') {
+        $groups = array_merge(...array_values($navGroups));
+    } elseif (isset($navGroups[$role])) {
+        $groups = $navGroups[$role];
+    }
+    $isReportsActive = request()->routeIs('reports.*');
+@endphp
+<aside id="sidebar" class="sidebar">
+    {{-- Brand --}}
+    <div class="sidebar-brand">
+        <img src="{{ asset('images/logo.png') }}" alt="logo">
+        <div class="min-w-0 sidebar-brand-text">
+            <p class="text-sm font-bold leading-tight truncate">{{ __('navigation.university_name') }}</p>
+            <p class="text-xs text-white/60 mt-0.5 truncate">{{ __('navigation.system_name') }}</p>
+        </div>
+    </div>
+
+    {{-- Navigation --}}
+    <nav class="flex-1 px-2.5 py-3 space-y-5 overflow-y-auto sidebar-nav">
+
+        {{-- Section 1: Home --}}
+        <div>
+            <ul class="space-y-0.5">
+                <li>
+                    <a href="{{ route('dashboard') }}"
+                       class="sidebar-link {{ request()->routeIs('dashboard') ? 'active' : '' }}"
+                       title="{{ __('navigation.dashboard') }}">
+                        <span class="sidebar-icon"><x-icon name="home" :size="18" /></span>
+                        <span class="label">{{ __('navigation.dashboard') }}</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        {{-- Section 2: Role groups --}}
+        @foreach ($groups as $group)
+            <div class="sidebar-section">
+                <div class="sidebar-group-title">
+                    <span class="sidebar-group-icon"><x-icon :name="$group['icon']" :size="13" :stroke-width="2.2" /></span>
+                    <span>{{ __('navigation.' . $group['group_key']) }}</span>
+                </div>
+                <ul class="space-y-0.5">
+                    @foreach ($group['items'] as $it)
+                        @php $active = request()->routeIs($it['match'] ?? $it['route']) ? 'active' : ''; @endphp
+                        <li>
+                            <a href="{{ route($it['route']) }}"
+                               class="sidebar-link {{ $active }}"
+                               title="{{ __('navigation.' . $it['key']) }}">
+                                <span class="sidebar-icon"><x-icon :name="$it['icon']" :size="18" /></span>
+                                <span class="label">{{ __('navigation.' . $it['key']) }}</span>
+                            </a>
+                        </li>
+                    @endforeach
+                </ul>
+            </div>
+        @endforeach
+
+        {{-- Section 3: Reports --}}
+        @if(in_array($role, ['admin','registrar','finance','results']))
+            <div class="sidebar-section sidebar-section-reports">
+                <div class="sidebar-group-title">
+                    <span class="sidebar-group-icon"><x-icon name="chart-bar" :size="13" :stroke-width="2.2" /></span>
+                    <span>{{ __('navigation.reports_group') }}</span>
+                </div>
+                <ul class="space-y-0.5">
+                    <li>
+                        <a href="{{ route('reports.index') }}"
+                           class="sidebar-link {{ $isReportsActive ? 'active' : '' }}"
+                           title="{{ __('navigation.reports') }}">
+                            <span class="sidebar-icon"><x-icon name="trending-up" :size="18" /></span>
+                            <span class="label">{{ __('navigation.reports') }}</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        @endif
+    </nav>
+
+    {{-- Footer --}}
+    <div class="sidebar-footer">
+        <div class="sidebar-footer-content">
+            <div class="sidebar-footer-avatar">{{ mb_strtoupper(mb_substr(auth()->user()?->name ?? 'U', 0, 1)) }}</div>
+            <div class="sidebar-footer-info">
+                <p class="text-xs font-semibold text-white/90 truncate">{{ auth()->user()?->name }}</p>
+                <p class="text-[10px] text-white/50 truncate">v1.0 — {{ date('Y') }}</p>
+            </div>
+        </div>
+    </div>
+</aside>

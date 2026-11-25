@@ -1,0 +1,63 @@
+@extends('layouts.app')
+
+@section('title', __('invoices.actions.create'))
+
+@section('content')
+<x-page-header :title="__('invoices.actions.create')" :subtitle="__('invoices.subtitle')" />
+
+<form method="POST" action="{{ route('finance.invoices.store') }}">
+    @csrf
+    <x-card>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm mb-1">{{ __('invoices.fields.student') }} <span class="text-red-500">*</span></label>
+                <select name="student_id" class="input" required>
+                    <option value="">— {{ __('invoices.filters.all') }} —</option>
+                    @foreach($students as $st)
+                        <option value="{{ $st->id }}" @selected(old('student_id') == $st->id)>
+                            {{ $st->user?->name ?? ('#' . $st->id) }} — {{ $st->student_number }}
+                        </option>
+                    @endforeach
+                </select>
+                @error('student_id') <p class="text-red-500 text-sm mt-1">{{ $message }}</p> @enderror
+            </div>
+            <div>
+                <label class="block text-sm mb-1">{{ __('invoices.fields.semester') }}</label>
+                <select name="semester_id" class="input">
+                    <option value="">— {{ __('invoices.filters.all') }} —</option>
+                    @foreach($semesters as $s)
+                        <option value="{{ $s->id }}" @selected(old('semester_id') == $s->id)>{{ $s->name }}</option>
+                    @endforeach
+                </select>
+                @error('semester_id') <p class="text-red-500 text-sm mt-1">{{ $message }}</p> @enderror
+            </div>
+            <div class="md:col-span-2">
+                <label class="block text-sm mb-1">{{ __('invoices.fields.description') }} <span class="text-red-500">*</span></label>
+                <input type="text" name="description" value="{{ old('description') }}" class="input" maxlength="255" required>
+                @error('description') <p class="text-red-500 text-sm mt-1">{{ $message }}</p> @enderror
+            </div>
+            <div>
+                <label class="block text-sm mb-1">{{ __('invoices.fields.amount') }} <span class="text-red-500">*</span></label>
+                <input type="number" step="0.01" min="0.01" name="amount" value="{{ old('amount') }}" class="input" required>
+                @error('amount') <p class="text-red-500 text-sm mt-1">{{ $message }}</p> @enderror
+            </div>
+            <div>
+                <label class="block text-sm mb-1">{{ __('invoices.fields.discount') }}</label>
+                <input type="number" step="0.01" min="0" name="discount" value="{{ old('discount', 0) }}" class="input">
+                @error('discount') <p class="text-red-500 text-sm mt-1">{{ $message }}</p> @enderror
+            </div>
+            <div>
+                <label class="block text-sm mb-1">{{ __('invoices.fields.due_date') }} <span class="text-red-500">*</span></label>
+                <input type="date" name="due_date" value="{{ old('due_date', now()->addDays(30)->toDateString()) }}" class="input" required>
+                @error('due_date') <p class="text-red-500 text-sm mt-1">{{ $message }}</p> @enderror
+            </div>
+        </div>
+        <x-slot name="footer">
+            <div class="flex gap-2">
+                <x-button type="submit" variant="primary">{{ __('invoices.actions.save') }}</x-button>
+                <x-button variant="secondary" :href="route('finance.invoices.index')">{{ __('invoices.actions.cancel') }}</x-button>
+            </div>
+        </x-slot>
+    </x-card>
+</form>
+@endsection

@@ -1,0 +1,92 @@
+@php $locale = session('locale', 'ar'); @endphp
+<header class="navbar">
+    <div class="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
+        <button id="sidebar-toggle" class="icon-btn shrink-0" aria-label="{{ __('navigation.toggle_sidebar') }}">
+            <x-icon name="menu" :size="22" />
+        </button>
+        <div class="min-w-0">
+            <h2 class="text-sm md:text-lg font-bold truncate" style="color: var(--text)">@yield('title', __('dashboard.title'))</h2>
+            <p class="text-[11px] md:text-xs text-muted truncate hidden sm:block">@yield('subtitle', '')</p>
+        </div>
+    </div>
+    <div class="flex items-center gap-0.5 md:gap-1.5 shrink-0">
+        {{-- Search (desktop) --}}
+        <form action="{{ route('reports.index') }}" method="GET" class="hidden lg:block relative">
+            <input type="text" name="q" placeholder="{{ __('navigation.search') }}" class="input" style="width: 220px; padding-inline-start: 2.2rem; padding-block: 0.45rem;">
+            <svg style="position:absolute; inset-inline-start:0.7rem; top:50%; transform:translateY(-50%); color: var(--text-muted)" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </form>
+
+        {{-- Language --}}
+        <a href="{{ route('locale.switch', $locale === 'ar' ? 'en' : 'ar') }}"
+           class="icon-btn lang-btn" title="{{ __('navigation.language') }}">
+            <span class="text-[13px] font-bold tracking-tight">{{ $locale === 'ar' ? 'EN' : 'ع' }}</span>
+        </a>
+
+        {{-- Theme --}}
+        <button id="theme-toggle" class="icon-btn" title="{{ __('navigation.toggle_theme') }}">
+            <span data-icon="sun" class="flex items-center justify-center">
+                <x-icon name="sun" :size="19" />
+            </span>
+            <span data-icon="moon" class="hidden items-center justify-center">
+                <x-icon name="moon" :size="19" />
+            </span>
+        </button>
+
+        {{-- Notifications --}}
+        <div class="relative">
+            <button id="notif-toggle" class="icon-btn" title="{{ __('navigation.notifications') }}">
+                <x-icon name="bell" :size="19" />
+                <span id="notif-badge" class="notif-badge" style="display:none">0</span>
+            </button>
+            <div id="notif-menu" class="dropdown-menu notif-menu">
+                <div class="px-3 py-2 text-xs font-bold text-muted border-b border-default flex items-center justify-between">
+                    <span>{{ __('navigation.notifications') }}</span>
+                </div>
+                <div data-notif-list>
+                    <div class="p-4 text-sm text-center text-muted">
+                        <x-icon name="bell" :size="24" class="mx-auto opacity-30" />
+                        <p class="mt-2">{{ __('navigation.no_notifications') }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- User --}}
+        <div class="relative">
+            @php
+                $roleValue = auth()->user()?->role?->value ?? 'guest';
+                $roleLabel = __('roles.' . $roleValue);
+            @endphp
+            <button data-dropdown-toggle="#user-menu" class="user-menu-btn">
+                <div class="avatar-circle">{{ mb_strtoupper(mb_substr(auth()->user()?->name ?? 'U', 0, 1)) }}</div>
+                <div class="hidden md:block text-start min-w-0">
+                    <p class="text-sm font-semibold leading-tight truncate" style="color: var(--text)">{{ auth()->user()?->name }}</p>
+                    <p class="text-[11px] text-muted leading-tight truncate">{{ $roleLabel }}</p>
+                </div>
+                <span class="hidden md:inline-flex text-muted"><x-icon name="chevron-down" :size="14" /></span>
+            </button>
+            <div id="user-menu" class="dropdown-menu user-dropdown">
+                <div class="px-3 py-3 border-b border-default">
+                    <div class="flex items-center gap-2.5">
+                        <div class="avatar-circle avatar-lg">{{ mb_strtoupper(mb_substr(auth()->user()?->name ?? 'U', 0, 1)) }}</div>
+                        <div class="min-w-0">
+                            <p class="text-sm font-semibold truncate">{{ auth()->user()?->name }}</p>
+                            <p class="text-xs text-muted truncate">{{ auth()->user()?->email }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-1">
+                    <a href="#" class="dropdown-item" onclick="alert('{{ __('common.coming_soon') }}'); return false;">
+                        <x-icon name="lock" :size="16" /> {{ __('auth.change_password') }}
+                    </a>
+                    <form method="POST" action="{{ route('logout') }}">
+                        @csrf
+                        <button type="submit" class="dropdown-item dropdown-item-danger">
+                            <x-icon name="log-out" :size="16" /> {{ __('auth.logout') }}
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>

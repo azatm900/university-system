@@ -1,0 +1,379 @@
+@extends('layouts.app')
+@section('title', 'استمارة تسجيل طالب جديد')
+
+@section('content')
+<div class="max-w-5xl mx-auto animate-fade-in space-y-6">
+
+    {{-- ========== ترويسة الاستمارة (مطابقة للورقية) ========== --}}
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 text-center relative overflow-hidden">
+        <div class="flex items-center justify-center gap-4 mb-3">
+            <img src="{{ asset('images/logo.png') }}" alt="logo" class="h-14 w-14 object-contain">
+            <div>
+                <p class="text-sm font-bold text-slate-700">جمهورية السودان — ولاية نهر النيل</p>
+                <p class="text-sm font-bold text-slate-700">وزارة الصحة</p>
+                <p class="text-base font-extrabold text-blue-700">جامعة العلوم الصحية</p>
+            </div>
+        </div>
+        <div class="inline-block bg-blue-50 text-blue-700 font-bold px-4 py-1.5 rounded-lg border border-blue-200 text-sm">
+            استمارة تسجيل / قبول رقم (111)
+        </div>
+    </div>
+
+    {{-- ========== النموذج ========== --}}
+    <form method="POST" action="{{ route('registrar.students.store') }}" enctype="multipart/form-data" class="space-y-6">
+        @csrf
+
+        {{-- ===== القسم 1: معلومات الطالب بوساطة الطالب ===== --}}
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="px-6 py-4 bg-gradient-to-l from-blue-50 to-transparent border-b border-slate-100 flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow">
+                    <x-icon name="user" :size="20" />
+                </div>
+                <h3 class="text-lg font-bold text-slate-800">1. معلومات الطالب <span class="text-sm font-normal text-slate-500">(بوساطة الطالب)</span></h3>
+            </div>
+
+            <div class="p-6 space-y-6">
+                {{-- صورة الطالب + بيانات أساسية --}}
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+                    {{-- تحميل الصورة --}}
+                    <div class="text-center">
+                        <label class="flex items-center justify-center text-sm font-bold text-slate-700 mb-2">الصورة الشخصية</label>
+                        <div class="mx-auto w-32 h-36 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 flex items-center justify-center overflow-hidden cursor-pointer hover:border-blue-400 transition" id="photo-box">
+                            <img id="photo-preview" src="{{ asset('images/logo.png') }}" class="hidden w-full h-full object-cover">
+                            <span id="photo-placeholder" class="text-slate-400 text-xs">صورة<br>فوتوغرافية</span>
+                        </div>
+                        <input type="file" name="photo" id="photo-input" accept="image/*" class="hidden">
+                        <button type="button" onclick="document.getElementById('photo-input').click()" class="mt-2 text-xs font-semibold text-blue-600 hover:text-blue-700">اختيار صورة</button>
+                        @error('photo')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
+                    </div>
+
+                    {{-- الاسم الرباعي والبرنامج --}}
+                    <div class="md:col-span-2 space-y-4">
+                        <div>
+                            <label class="flex items-center gap-2 text-sm font-bold text-slate-700 mb-2">
+                                <x-icon name="id-card" :size="16" class="text-blue-600" /> اسم الطالب (رباعي) <span class="text-red-500">*</span>
+                            </label>
+                            <input name="full_name" value="{{ old('full_name') }}" required placeholder="الاسم، اسم الأب، اسم الجد، اللقب"
+                                class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all bg-white text-slate-800">
+                            @error('full_name')<p class="text-sm text-red-600 mt-1.5 flex items-center gap-1"><x-icon name="exclamation-circle" :size="14" /> {{ $message }}</p>@enderror
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="flex items-center gap-2 text-sm font-bold text-slate-700 mb-2">
+                                    <x-icon name="identification" :size="16" class="text-purple-600" /> الرقم الجامعي <span class="text-red-500">*</span>
+                                </label>
+                                <input name="student_number" value="{{ old('student_number') }}" required placeholder="مثال: 20240001"
+                                    class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-purple-500 focus:ring-4 focus:ring-purple-100 outline-none transition-all bg-white text-slate-800 font-mono">
+                                @error('student_number')<p class="text-sm text-red-600 mt-1.5 flex items-center gap-1"><x-icon name="exclamation-circle" :size="14" /> {{ $message }}</p>@enderror
+                            </div>
+
+                            <div>
+                                <label class="flex items-center gap-2 text-sm font-bold text-slate-700 mb-2">
+                                    <x-icon name="academic-cap" :size="16" class="text-emerald-600" /> البرنامج <span class="text-red-500">*</span>
+                                </label>
+                                <select name="program_id" required class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 outline-none transition-all bg-white text-slate-800">
+                                    <option value="">— اختر البرنامج —</option>
+                                    @foreach (($programs ?? \App\Models\Program::all()) as $pr)
+                                        <option value="{{ $pr->id }}" @selected((int) old('program_id') === $pr->id)>{{ $pr->name }}</option>
+                                    @endforeach
+                                </select>
+                                @error('program_id')<p class="text-sm text-red-600 mt-1.5 flex items-center gap-1"><x-icon name="exclamation-circle" :size="14" /> {{ $message }}</p>@enderror
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- حساب المستخدم --}}
+                <div>
+                    <label class="flex items-center gap-2 text-sm font-bold text-slate-700 mb-2">
+                        <x-icon name="user-circle" :size="16" class="text-blue-600" /> ربط بحساب مستخدم (اختياري)
+                    </label>
+                    <select name="user_id" class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all bg-white text-slate-800">
+                        <option value="">— بدون ربط —</option>
+                        @foreach (($users ?? \App\Models\User::where('role','student')->whereDoesntHave('student')->get()) as $u)
+                            <option value="{{ $u->id }}" @selected((int) old('user_id') === $u->id)>{{ $u->name }} ({{ $u->email }})</option>
+                        @endforeach
+                    </select>
+                    @error('user_id')<p class="text-sm text-red-600 mt-1.5 flex items-center gap-1"><x-icon name="exclamation-circle" :size="14" /> {{ $message }}</p>@enderror
+                </div>
+
+                {{-- بيانات شخصية --}}
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div>
+                        <label class="flex items-center gap-2 text-sm font-bold text-slate-700 mb-2">
+                            <x-icon name="users" :size="16" class="text-pink-600" /> الجنس <span class="text-red-500">*</span>
+                        </label>
+                        <select name="gender" required class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-pink-500 focus:ring-4 focus:ring-pink-100 outline-none transition-all bg-white text-slate-800">
+                            @foreach (\App\Enums\StudentGender::cases() as $g)
+                                <option value="{{ $g->value }}" @selected(old('gender') === $g->value)>{{ __('students.genders.' . $g->value) }}</option>
+                            @endforeach
+                        </select>
+                        @error('gender')<p class="text-sm text-red-600 mt-1.5 flex items-center gap-1"><x-icon name="exclamation-circle" :size="14" /> {{ $message }}</p>@enderror
+                    </div>
+
+                    <div>
+                        <label class="flex items-center gap-2 text-sm font-bold text-slate-700 mb-2">
+                            <x-icon name="cake" :size="16" class="text-amber-600" /> تاريخ الميلاد <span class="text-red-500">*</span>
+                        </label>
+                        <input name="date_of_birth" type="date" value="{{ old('date_of_birth') }}" required
+                            class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-amber-500 focus:ring-4 focus:ring-amber-100 outline-none transition-all bg-white text-slate-800">
+                        @error('date_of_birth')<p class="text-sm text-red-600 mt-1.5 flex items-center gap-1"><x-icon name="exclamation-circle" :size="14" /> {{ $message }}</p>@enderror
+                    </div>
+
+                    <div>
+                        <label class="flex items-center gap-2 text-sm font-bold text-slate-700 mb-2">
+                            <x-icon name="document-text" :size="16" class="text-slate-600" /> الرقم الوطني
+                        </label>
+                        <input name="national_id" value="{{ old('national_id') }}" placeholder="الرقم الوطني"
+                            class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-slate-400 focus:ring-4 focus:ring-slate-100 outline-none transition-all bg-white text-slate-800 font-mono">
+                        @error('national_id')<p class="text-sm text-red-600 mt-1.5 flex items-center gap-1"><x-icon name="exclamation-circle" :size="14" /> {{ $message }}</p>@enderror
+                    </div>
+
+                    <div>
+                        <label class="flex items-center gap-2 text-sm font-bold text-slate-700 mb-2">
+                            <x-icon name="phone" :size="16" class="text-blue-600" /> الهاتف <span class="text-red-500">*</span>
+                        </label>
+                        <input name="phone" value="{{ old('phone') }}" required type="tel" placeholder="09XXXXXXXX"
+                            class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all bg-white text-slate-800 font-mono">
+                        @error('phone')<p class="text-sm text-red-600 mt-1.5 flex items-center gap-1"><x-icon name="exclamation-circle" :size="14" /> {{ $message }}</p>@enderror
+                    </div>
+                </div>
+
+                {{-- المهنة وتاريخ التعيين --}}
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="flex items-center gap-2 text-sm font-bold text-slate-700 mb-2">
+                            <x-icon name="briefcase" :size="16" class="text-indigo-600" /> المهنة
+                        </label>
+                        <input name="occupation" value="{{ old('occupation') }}" placeholder="مثال: ممرض / إداري / طالب"
+                            class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 outline-none transition-all bg-white text-slate-800">
+                        @error('occupation')<p class="text-sm text-red-600 mt-1.5 flex items-center gap-1"><x-icon name="exclamation-circle" :size="14" /> {{ $message }}</p>@enderror
+                    </div>
+
+                    <div>
+                        <label class="flex items-center gap-2 text-sm font-bold text-slate-700 mb-2">
+                            <x-icon name="calendar" :size="16" class="text-indigo-600" /> تاريخ التعيين / الالتحاق
+                        </label>
+                        <input name="appointment_date" type="date" value="{{ old('appointment_date') }}"
+                            class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 outline-none transition-all bg-white text-slate-800">
+                        @error('appointment_date')<p class="text-sm text-red-600 mt-1.5 flex items-center gap-1"><x-icon name="exclamation-circle" :size="14" /> {{ $message }}</p>@enderror
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- ===== القسم 2: العنوان (السكن الحالي) ===== --}}
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="px-6 py-4 bg-gradient-to-l from-red-50 to-transparent border-b border-slate-100 flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-red-600 text-white flex items-center justify-center shadow">
+                    <x-icon name="map-pin" :size="20" />
+                </div>
+                <h3 class="text-lg font-bold text-slate-800">2. العنوان (السكن الحالي)</h3>
+            </div>
+
+            <div class="p-6 space-y-4">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">الولاية</label>
+                        <input name="state" value="{{ old('state') }}" placeholder="ولاية نهر النيل"
+                            class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-red-500 focus:ring-4 focus:ring-red-100 outline-none transition-all bg-white text-slate-800">
+                        @error('state')<p class="text-sm text-red-600 mt-1.5 flex items-center gap-1"><x-icon name="exclamation-circle" :size="14" /> {{ $message }}</p>@enderror
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">الحي</label>
+                        <input name="district" value="{{ old('district') }}" placeholder="اسم الحي"
+                            class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-red-500 focus:ring-4 focus:ring-red-100 outline-none transition-all bg-white text-slate-800">
+                        @error('district')<p class="text-sm text-red-600 mt-1.5 flex items-center gap-1"><x-icon name="exclamation-circle" :size="14" /> {{ $message }}</p>@enderror
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">المربع / القسم</label>
+                        <input name="block" value="{{ old('block') }}" placeholder="رقم المربع"
+                            class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-red-500 focus:ring-4 focus:ring-red-100 outline-none transition-all bg-white text-slate-800">
+                        @error('block')<p class="text-sm text-red-600 mt-1.5 flex items-center gap-1"><x-icon name="exclamation-circle" :size="14" /> {{ $message }}</p>@enderror
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">العنوان التفصيلي الحالي</label>
+                    <textarea name="address" rows="2" placeholder="المدينة، الحي، الشارع، أقرب معلم..."
+                        class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-red-500 focus:ring-4 focus:ring-red-100 outline-none transition-all bg-white text-slate-800 resize-y">{{ old('address') }}</textarea>
+                    @error('address')<p class="text-sm text-red-600 mt-1.5 flex items-center gap-1"><x-icon name="exclamation-circle" :size="14" /> {{ $message }}</p>@enderror
+                </div>
+            </div>
+        </div>
+
+        {{-- ===== القسم 3: معلومات الثانوية / الشهادة ===== --}}
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="px-6 py-4 bg-gradient-to-l from-emerald-50 to-transparent border-b border-slate-100 flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow">
+                    <x-icon name="certificate" :size="20" />
+                </div>
+                <h3 class="text-lg font-bold text-slate-800">3. معلومات الثانوية <span class="text-sm font-normal text-slate-500">(بوساطة الشؤون التعليمية)</span></h3>
+            </div>
+
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">نوع الشهادة <span class="text-red-500">*</span></label>
+                    <select name="certificate_type" required class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 outline-none transition-all bg-white text-slate-800">
+                        <option value="">— اختر نوع الشهادة —</option>
+                        <option value="sudanese" @selected(old('certificate_type') === 'sudanese')>شهادة سودانية (ثانوية عامة)</option>
+                        <option value="afghan" @selected(old('certificate_type') === 'afghan')>شهادة أفغانستان (تمريض)</option>
+                        <option value="diploma" @selected(old('certificate_type') === 'diploma')>دبلوم متوسط</option>
+                        <option value="other" @selected(old('certificate_type') === 'other')>شهادة أخرى</option>
+                    </select>
+                    @error('certificate_type')<p class="text-sm text-red-600 mt-1.5 flex items-center gap-1"><x-icon name="exclamation-circle" :size="14" /> {{ $message }}</p>@enderror
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">تاريخ الحصول على الشهادة</label>
+                        <input name="certificate_date" type="date" value="{{ old('certificate_date') }}"
+                            class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 outline-none transition-all bg-white text-slate-800">
+                        @error('certificate_date')<p class="text-sm text-red-600 mt-1.5 flex items-center gap-1"><x-icon name="exclamation-circle" :size="14" /> {{ $message }}</p>@enderror
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">الدرجة / النسبة المئوية</label>
+                        <input name="certificate_score" value="{{ old('certificate_score') }}" placeholder="مثال: 85%"
+                            class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 outline-none transition-all bg-white text-slate-800">
+                        @error('certificate_score')<p class="text-sm text-red-600 mt-1.5 flex items-center gap-1"><x-icon name="exclamation-circle" :size="14" /> {{ $message }}</p>@enderror
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">ملاحظات الشؤون التعليمية</label>
+                    <textarea name="academic_notes" rows="2" placeholder="أي ملاحظات إضافية..."
+                        class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 outline-none transition-all bg-white text-slate-800 resize-y">{{ old('academic_notes') }}</textarea>
+                    @error('academic_notes')<p class="text-sm text-red-600 mt-1.5 flex items-center gap-1"><x-icon name="exclamation-circle" :size="14" /> {{ $message }}</p>@enderror
+                </div>
+            </div>
+        </div>
+
+        {{-- ===== القسم 4: الرسوم (بوساطة المسجل العام) ===== --}}
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="px-6 py-4 bg-gradient-to-l from-amber-50 to-transparent border-b border-slate-100 flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-amber-600 text-white flex items-center justify-center shadow">
+                    <x-icon name="banknotes" :size="20" />
+                </div>
+                <h3 class="text-lg font-bold text-slate-800">4. الرسوم <span class="text-sm font-normal text-slate-500">(بوساطة المسجل العام)</span></h3>
+            </div>
+
+            <div class="p-6 space-y-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">رسوم التسجيل (رقماً)</label>
+                        <input name="registration_fee" value="{{ old('registration_fee') }}" type="number" step="0.01" placeholder="0.00"
+                            class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-amber-500 focus:ring-4 focus:ring-amber-100 outline-none transition-all bg-white text-slate-800 font-mono">
+                        @error('registration_fee')<p class="text-sm text-red-600 mt-1.5 flex items-center gap-1"><x-icon name="exclamation-circle" :size="14" /> {{ $message }}</p>@enderror
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">رسوم التسجيل (كتابياً)</label>
+                        <input name="registration_fee_words" value="{{ old('registration_fee_words') }}" placeholder="مثال: خمسمائة جنيه فقط"
+                            class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-amber-500 focus:ring-4 focus:ring-amber-100 outline-none transition-all bg-white text-slate-800">
+                        @error('registration_fee_words')<p class="text-sm text-red-600 mt-1.5 flex items-center gap-1"><x-icon name="exclamation-circle" :size="14" /> {{ $message }}</p>@enderror
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">الرسوم الدراسية (رقماً)</label>
+                        <input name="tuition_fee" value="{{ old('tuition_fee') }}" type="number" step="0.01" placeholder="0.00"
+                            class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-amber-500 focus:ring-4 focus:ring-amber-100 outline-none transition-all bg-white text-slate-800 font-mono">
+                        @error('tuition_fee')<p class="text-sm text-red-600 mt-1.5 flex items-center gap-1"><x-icon name="exclamation-circle" :size="14" /> {{ $message }}</p>@enderror
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">الرسوم الدراسية (كتابياً)</label>
+                        <input name="tuition_fee_words" value="{{ old('tuition_fee_words') }}" placeholder="مثال: ألف جنيه فقط لا غير"
+                            class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-amber-500 focus:ring-4 focus:ring-amber-100 outline-none transition-all bg-white text-slate-800">
+                        @error('tuition_fee_words')<p class="text-sm text-red-600 mt-1.5 flex items-center gap-1"><x-icon name="exclamation-circle" :size="14" /> {{ $message }}</p>@enderror
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- ===== القسم 5: التحصيلات + الحالة ===== --}}
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="px-6 py-4 bg-gradient-to-l from-purple-50 to-transparent border-b border-slate-100 flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-purple-600 text-white flex items-center justify-center shadow">
+                    <x-icon name="receipt" :size="20" />
+                </div>
+                <h3 class="text-lg font-bold text-slate-800">5. بيانات التحصيلات والاعتماد</h3>
+            </div>
+
+            <div class="p-6 space-y-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">إيصال رسوم التسجيل (رقم)</label>
+                        <input name="registration_receipt_no" value="{{ old('registration_receipt_no') }}" placeholder="RCP-2026-000001"
+                            class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-purple-500 focus:ring-4 focus:ring-purple-100 outline-none transition-all bg-white text-slate-800 font-mono">
+                        @error('registration_receipt_no')<p class="text-sm text-red-600 mt-1.5 flex items-center gap-1"><x-icon name="exclamation-circle" :size="14" /> {{ $message }}</p>@enderror
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">إيصال الرسوم الدراسية (رقم)</label>
+                        <input name="tuition_receipt_no" value="{{ old('tuition_receipt_no') }}" placeholder="RCP-2026-000002"
+                            class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-purple-500 focus:ring-4 focus:ring-purple-100 outline-none transition-all bg-white text-slate-800 font-mono">
+                        @error('tuition_receipt_no')<p class="text-sm text-red-600 mt-1.5 flex items-center gap-1"><x-icon name="exclamation-circle" :size="14" /> {{ $message }}</p>@enderror
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">اسم المحاسب</label>
+                        <input name="accountant_name" value="{{ old('accountant_name') }}" placeholder="اسم موظف التحصيلات"
+                            class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-purple-500 focus:ring-4 focus:ring-purple-100 outline-none transition-all bg-white text-slate-800">
+                        @error('accountant_name')<p class="text-sm text-red-600 mt-1.5 flex items-center gap-1"><x-icon name="exclamation-circle" :size="14" /> {{ $message }}</p>@enderror
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">اسم المسجل (الاعتماد)</label>
+                        <input name="registrar_name" value="{{ old('registrar_name') }}" placeholder="اسم المسجل العام"
+                            class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-purple-500 focus:ring-4 focus:ring-purple-100 outline-none transition-all bg-white text-slate-800">
+                        @error('registrar_name')<p class="text-sm text-red-600 mt-1.5 flex items-center gap-1"><x-icon name="exclamation-circle" :size="14" /> {{ $message }}</p>@enderror
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-slate-100">
+                    <div>
+                        <label class="flex items-center gap-2 text-sm font-bold text-slate-700 mb-2">
+                            <x-icon name="calendar-days" :size="16" class="text-indigo-600" /> تاريخ التسجيل <span class="text-red-500">*</span>
+                        </label>
+                        <input name="enrollment_date" type="date" value="{{ old('enrollment_date', now()->toDateString()) }}" required
+                            class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 outline-none transition-all bg-white text-slate-800">
+                        @error('enrollment_date')<p class="text-sm text-red-600 mt-1.5 flex items-center gap-1"><x-icon name="exclamation-circle" :size="14" /> {{ $message }}</p>@enderror
+                    </div>
+                    <div>
+                        <label class="flex items-center gap-2 text-sm font-bold text-slate-700 mb-2">
+                            <x-icon name="shield-check" :size="16" class="text-emerald-600" /> حالة الطالب <span class="text-red-500">*</span>
+                        </label>
+                        <select name="status" required class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 outline-none transition-all bg-white text-slate-800">
+                            @foreach (\App\Enums\StudentStatus::cases() as $s)
+                                <option value="{{ $s->value }}" @selected(old('status', 'active') === $s->value)>{{ __('students.statuses.' . $s->value) }}</option>
+                            @endforeach
+                        </select>
+                        @error('status')<p class="text-sm text-red-600 mt-1.5 flex items-center gap-1"><x-icon name="exclamation-circle" :size="14" /> {{ $message }}</p>@enderror
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- ===== أزرار الحفظ ===== --}}
+        <div class="flex flex-col-reverse sm:flex-row items-center justify-end gap-3 bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+            <a href="{{ route('registrar.students.index') }}" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl transition-all duration-200">
+                <x-icon name="x-mark" :size="18" /> إلغاء
+            </a>
+            <button type="submit" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3 bg-gradient-to-l from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:-translate-y-0.5">
+                <x-icon name="check" :size="20" /> حفظ الاستمارة وتسجيل الطالب
+            </button>
+        </div>
+    </form>
+</div>
+
+{{-- معاينة الصورة الفورية --}}
+<script>
+    document.getElementById('photo-input').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                document.getElementById('photo-preview').src = ev.target.result;
+                document.getElementById('photo-preview').classList.remove('hidden');
+                document.getElementById('photo-placeholder').classList.add('hidden');
+            }
+            reader.readAsDataURL(file);
+        }
+    });
+</script>
+@endsection

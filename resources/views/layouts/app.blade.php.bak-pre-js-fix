@@ -1,0 +1,99 @@
+﻿@php
+    $locale = session('locale', 'ar');
+    $dir = $locale === 'ar' ? 'rtl' : 'ltr';
+    app()->setLocale($locale);
+@endphp
+<!DOCTYPE html>
+<html lang="{{ $locale }}" dir="{{ $dir }}">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+    <title>@yield('title', 'لوحة التحكم') — جامعة العلوم الصحية</title>
+    <link rel="icon" href="{{ asset('images/logo.png') }}" type="image/png">
+
+    {{-- 🛡️ إجبار الوضع الفاتح دائماً --}}
+    <script>
+        (function () {
+            try {
+                localStorage.setItem('theme', 'light');
+                document.documentElement.classList.remove('dark');
+            } catch (e) {}
+        })();
+    </script>
+
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+
+    <style>
+        .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .backdrop { transition: opacity 0.3s ease, visibility 0.3s ease; }
+        .backdrop.show { opacity: 1; visibility: visible; }
+
+        /* 🛡️ منع أي dark mode من الظهور */
+        html, body { background-color: #f8fafc !important; color: #1e293b !important; }
+    </style>
+</head>
+<body class="min-h-screen flex overflow-x-hidden bg-slate-50 text-slate-800">
+
+    @include('partials.sidebar')
+
+    <div id="backdrop" class="backdrop fixed inset-0 bg-black/50 z-30 hidden" onclick="toggleSidebar()"></div>
+
+    <div class="flex-1 flex flex-col min-w-0">
+        @include('partials.navbar')
+
+        <main class="flex-1 p-4 md:p-6 lg:p-8 animate-fade-in">
+            <div class="mx-auto w-full max-w-screen-2xl">
+                @include('partials.flash')
+                @yield('content')
+            </div>
+        </main>
+
+        <footer class="text-center text-xs py-4 text-slate-500 border-t border-slate-200 bg-white px-4">
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-3">
+                <span>نظام جامعة العلوم الصحية v1.0</span>
+                <span class="hidden sm:inline">—</span>
+                <span>© {{ date('Y') }}</span>
+            </div>
+        </footer>
+    </div>
+
+    @stack('scripts')
+
+    <script>
+        function toggleSidebar() {
+            const sidebar = document.querySelector('.sidebar');
+            const backdrop = document.getElementById('backdrop');
+            if (sidebar && backdrop) {
+                sidebar.classList.toggle('mobile-open');
+                if (sidebar.classList.contains('mobile-open')) {
+                    backdrop.classList.remove('hidden');
+                    setTimeout(() => backdrop.classList.add('show'), 10);
+                } else {
+                    backdrop.classList.remove('show');
+                    setTimeout(() => backdrop.classList.add('hidden'), 300);
+                }
+            }
+        }
+
+        function toggleAccordion(menuId, iconId, event) {
+            if (event) event.stopPropagation();
+            const menu = document.getElementById(menuId);
+            const icon = document.getElementById(iconId);
+            if (!menu || !icon) return;
+            if (menu.style.maxHeight === '0px' || menu.style.maxHeight === '') {
+                menu.style.maxHeight = menu.scrollHeight + 'px';
+                menu.style.opacity = '1';
+                icon.classList.add('rotate-180');
+            } else {
+                menu.style.maxHeight = '0px';
+                menu.style.opacity = '0';
+                icon.classList.remove('rotate-180');
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,311 @@
+═══════════════════════════════════════════════
+DIAG-H — Phase G Pre-Flight Diagnostic
+Base: C:\Users\maham\Herd\university-system
+Time: 2026-11-16 23:37:55
+═══════════════════════════════════════════════
+
+─── [1] app/Http/Controllers/Admin/UserController.php ───
+EXISTS — 5913 bytes
+----- FULL CONTENT -----
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Enums\UserRole;
+use App\Http\Controllers\Controller;
+use App\Models\User;
+use App\Services\AuditService;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+use Illuminate\View\View;
+
+class UserController extends Controller
+{
+    public function __construct(protected AuditService $audit) {}
+
+    public function index(Request $request): View
+    {
+        $q = User::query();
+        if ($role = $request->input('role')) {
+            $q->where('role', $role);
+        }
+        if ($request->has('is_active') && $request->input('is_active') !== '') {
+            $q->where('is_active', filter_var($request->input('is_active'), FILTER_VALIDATE_BOOLEAN));
+        }
+        if ($search = $request->input('search')) {
+            $q->where(function ($sub) use ($search) {
+                $sub->where('name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+        $users = $q->orderBy('id', 'desc')->paginate(20)->withQueryString();
+        return view('admin.users.index', compact('users'));
+    }
+
+    public function create(): View
+    {
+        return view('admin.users.create', ['roles' => UserRole::cases()]);
+    }
+
+    public function store(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'name'      => ['required', 'string', 'max:255'],
+            'email'     => ['required', 'email', 'max:255', 'unique:users,email'],
+            'password'  => ['required', 'string', 'min:8'],
+            'role'      => ['required', Rule::enum(UserRole::class)],
+            'is_active' => ['sometimes', 'boolean'],
+        ]);
+        $user = User::create([
+            'name'      => $data['name'],
+            'email'     => $data['email'],
+            'password'  => $data['password'],
+            'role'      => $data['role'],
+            'is_active' => $data['is_active'] ?? true,
+        ]);
+        $this->audit->log(
+            action: 'user.created',
+            subject: $user,
+            newValues: [
+                'name'      => $user->name,
+                'email'     => $user->email,
+                'role'      => $user->getRawOriginal('role'),
+                'is_active' => (bool) $user->getRawOriginal('is_active'),
+            ],
+        );
+        return redirect()->route('admin.users.index')->with('success', 'تم إنشاء المستخدم');
+    }
+
+    public function show(User $user): View
+    {
+        return view('admin.users.show', compact('user'));
+    }
+
+    public function edit(User $user): View
+    {
+        return view('admin.users.edit', ['user' => $user, 'roles' => UserRole::cases()]);
+    }
+
+    public function update(Request $request, User $user): RedirectResponse
+    {
+        $data = $request->validate([
+            'name'     => ['required', 'string', 'max:255'],
+            'email'    => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
+            'role'     => ['required', Rule::enum(UserRole::class)],
+            'password' => ['nullable', 'string', 'min:8'],
+        ]);
+        $old = [
+            'name'  => $user->getRawOriginal('name'),
+            'email' => $user->getRawOriginal('email'),
+            'role'  => $user->getRawOriginal('role'),
+        ];
+        $user->name  = $data['name'];
+        $user->email = $data['email'];
+        $user->role  = $data['role'];
+        if (!empty($data['password'])) {
+            $user->password = $data['password'];
+        }
+        $user->save();
+        $this->audit->log(
+            action: 'user.updated',
+            subject: $user,
+            oldValues: $old,
+            newValues: [
+                'name'  => $user->getRawOriginal('name'),
+                'email' => $user->getRawOriginal('email'),
+                'role'  => $user->getRawOriginal('role'),
+            ],
+        );
+        return redirect()->route('admin.users.index')->with('success', 'تم التحديث');
+    }
+
+    public function destroy(Request $request, User $user): RedirectResponse
+    {
+        if ($request->user() && $request->user()->id === $user->id) {
+            abort(403, 'Cannot delete yourself');
+        }
+        $snapshot = [
+            'name'  => $user->getRawOriginal('name'),
+            'email' => $user->getRawOriginal('email'),
+        ];
+        $user->delete();
+        $this->audit->log(
+            action: 'user.deleted',
+            subject: $user,
+            oldValues: $snapshot,
+        );
+        return redirect()->route('admin.users.index')->with('success', 'تم الحذف');
+    }
+
+    public function toggleActive(Request $request, User $user): RedirectResponse
+    {
+        if ($request->user() && $request->user()->id === $user->id) {
+            abort(403, 'Cannot toggle your own status');
+        }
+        $old = (bool) $user->getRawOriginal('is_active');
+        $user->is_active = !$old;
+        $user->save();
+        $this->audit->log(
+            action: 'user.toggled_active',
+            subject: $user,
+            oldValues: ['is_active' => $old],
+            newValues: ['is_active' => (bool) $user->getRawOriginal('is_active')],
+        );
+        return redirect()->route('admin.users.index')->with('success', 'تم التبديل');
+    }
+
+    public function resetPassword(Request $request, User $user): RedirectResponse
+    {
+        $data = $request->validate([
+            'password' => ['required', 'string', 'min:8'],
+        ]);
+        $user->password = $data['password'];
+        $user->save();
+        $this->audit->log(
+            action: 'user.password_reset',
+            subject: $user,
+            newValues: ['reset_at' => now()->toIso8601String()],
+        );
+        return redirect()->route('admin.users.index')->with('success', 'تم إعادة تعيين كلمة المرور');
+    }
+}
+----- END -----
+
+─── [2] resources/views/admin/users/*.blade.php ───
+Directory EXISTS — 4 blade files
+  • create.blade.php — 1603 bytes
+  • edit.blade.php — 1527 bytes
+  • index.blade.php — 3101 bytes
+  • show.blade.php — 1185 bytes
+
+─── [3] lang/{ar,en}/{users,profile,password}.php ───
+  ✗ lang\ar\users.php — MISSING
+  ✗ lang\en\users.php — MISSING
+  ✗ lang\ar\profile.php — MISSING
+  ✗ lang\en\profile.php — MISSING
+  ✗ lang\ar\password.php — MISSING
+  ✗ lang\en\password.php — MISSING
+
+─── [4] routes/web.php — users/profile/password routes ───
+Matched 4 lines:
+      $cred = $request->validate(['email' => 'required|email', 'password' => 'required']);
+          Route::resource('users', UserController::class);
+          Route::patch('users/{user}/toggle', [UserController::class, 'toggleActive'])->name('users.toggle');
+          Route::post('users/{user}/reset-password', [UserController::class, 'resetPassword'])->name('users.reset-password');
+
+--- admin route group ---
+  use App\Http\Controllers\Admin\SettingController;
+  use App\Http\Controllers\Admin\UserController;
+  })->middleware(['auth', 'active', 'role:admin,registrar,finance'])->name('api.notifications');
+      Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function () {
+      Route::middleware('role:admin,registrar')->prefix('registrar')->name('registrar.')->group(function () {
+      Route::middleware('role:admin,finance')->prefix('finance')->name('finance.')->group(function () {
+      Route::middleware('role:admin,results')->prefix('results')->name('results.')->group(function () {
+          Route::middleware('role:admin,results')->group(function () {
+          Route::middleware('role:admin,registrar')->group(function () {
+          Route::middleware('role:admin,finance')->group(function () {
+          Route::middleware('role:admin,finance')->group(function () {
+          Route::middleware('role:admin')->group(function () {
+
+─── [5] app/Models/User.php — FULL ───
+EXISTS — 1886 bytes
+----- FULL CONTENT -----
+<?php
+
+namespace App\Models;
+
+use App\Enums\UserRole;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+
+class User extends Authenticatable
+{
+    /** @use HasFactory<\Database\Factories\UserFactory> */
+    use HasFactory, Notifiable, SoftDeletes;
+
+    protected $fillable = [
+        'name',
+        'email',
+        'password',
+        'role',
+        'is_active',
+    ];
+
+    protected $hidden = [
+        'password',
+        'remember_token',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'email_verified_at' => 'datetime',
+            'password'          => 'hashed',
+            'role'              => UserRole::class,
+            'is_active'         => 'boolean',
+        ];
+    }
+
+    // ─── Relations ─────────────────────────────────────────
+    public function student(): HasOne
+    {
+        return $this->hasOne(Student::class);
+    }
+
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class, 'received_by');
+    }
+
+    public function auditLogs(): HasMany
+    {
+        return $this->hasMany(AuditLog::class);
+    }
+
+    // ─── Scopes ────────────────────────────────────────────
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
+    }
+
+    public function scopeRole($query, UserRole|string $role)
+    {
+        $value = $role instanceof UserRole ? $role->value : $role;
+
+        return $query->where('role', $value);
+    }
+}
+----- END -----
+
+─── [6] resources/views/auth/login.blade.php ───
+EXISTS — 13182 bytes
+NO 'forgot password' link
+
+─── [7] app/Http/Controllers/Auth/* ───
+MISSING — app\Http\Controllers\Auth
+
+─── [8] app/Http/Middleware/* ───
+Directory EXISTS — 3 files
+  • EnsureActiveUser.php — 1255 bytes
+  • EnsureUserRole.php — 894 bytes
+  • SetLocale.php — 429 bytes
+✓ SetLocale PRESENT
+✓ Active PRESENT
+
+─── [9] ProfileController + views/profile/* ───
+✗ ProfileController MISSING
+✗ views/profile MISSING
+
+─── [10] resources/views/admin/* tree ───
+✓ resources/views/admin EXISTS
+  📁 settings\
+  📁 users\
+
+═══════════════════════════════════════════════
+END — Report: C:\Users\maham\Herd\university-system\diag-H-output.txt
+═══════════════════════════════════════════════

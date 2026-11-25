@@ -1,0 +1,39 @@
+@php
+    $locale = session('locale', 'ar');
+    $dir = $locale === 'ar' ? 'rtl' : 'ltr';
+    app()->setLocale($locale);
+@endphp
+<!DOCTYPE html>
+<html lang="{{ $locale }}" dir="{{ $dir }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>@yield('title', 'لوحة التحكم') — جامعة العلوم الصحية</title>
+    <link rel="icon" href="{{ asset('images/logo.png') }}" type="image/png">
+    <script>
+        (function () {
+            try {
+                var t = localStorage.getItem('theme') || 'light';
+                if (t === 'dark') document.documentElement.classList.add('dark');
+            } catch (e) {}
+        })();
+    </script>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+</head>
+<body class="min-h-screen flex">
+    @include('partials.sidebar')
+    <div id="backdrop" class="backdrop"></div>
+    <div class="flex-1 flex flex-col min-w-0">
+        @include('partials.navbar')
+        <main class="flex-1 p-4 md:p-6 animate-fade-in">
+            @include('partials.flash')
+            @yield('content')
+        </main>
+        <footer class="text-center text-xs py-3 text-muted border-t border-default">
+            نظام جامعة العلوم الصحية v1.0 — © {{ date('Y') }}
+        </footer>
+    </div>
+    @stack('scripts')
+</body>
+</html>

@@ -1,0 +1,245 @@
+<?php
+
+namespace App\Http\Controllers\Finance;
+
+use App\Http\Controllers\Controller;
+use App\Models\Invoice;
+use App\Models\Payment;
+use App\Models\Student;
+use App\Services\AuditService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
+use Illuminate\View\View;
+
+class PaymentController extends Controller
+{
+    public function index(Request $request): View
+    {
+        $query = Payment::with(['invoice.student.user', 'receiver']);
+
+        if ($search = $request->input('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('reference_number', 'like', "%{$search}%")
+                  ->orWhere('notes', 'like', "%{$search}%")
+                  ->orWhereHas('invoice', function ($iq) use ($search) {
+                      $iq->where('invoice_number', 'like', "%{$search}%");
+                  });
+            });
+        }
+        if ($studentNumber = $request->input('student_number')) {
+            $query->whereHas('invoice.student', function ($sq) use ($studentNumber) {
+                $sq->where('student_number', 'like', "%{$studentNumber}%");
+            });
+        }
+        if ($request->filled('method')) {
+            $query->where('method', $request->input('method'));
+        }
+
+        $payments = $query->latest()->paginate(20)->withQueryString();
+
+        return view('finance.payments.index', compact('payments'));
+    }
+
+    public function create(): View
+    {
+        return view('finance.payments.create');
+    }
+
+    /**
+     * AJAX: البحث عن طالب برقمه + الفواتير المستحقة
+     */
+    public function lookupStudent(Request $request): JsonResponse
+    {
+        $request->validate([
+            'student_number' => ['required', 'string', 'max:20'],
+        ]);
+
+        $student = Student::with('user', 'program')
+            ->where('student_number', $request->input('student_number'))
+            ->first();
+
+        if (! $student) {
+            return response()->json([
+                'found'   => false,
+                'message' => 'لا يوجد طالب بهذا الرقم الجامعي',
+            ], 404);
+        }
+
+        $dueInvoices = Invoice::where('student_id', $student->id)
+            ->whereIn('status', ['unpaid', 'partial'])
+            ->orderBy('due_date')
+            ->get()
+            ->map(function ($inv) use ($student) {
+                $installmentCount = Payment::where('invoice_id', $inv->id)->count();
+                return [
+                    'id'             => $inv->id,
+                    'invoice_number' => $inv->invoice_number,
+                    'description'    => $inv->description,
+                    'total'          => (float) $inv->total,
+                    'paid_amount'    => (float) $inv->paid_amount,
+                    'remaining'      => (float) ($inv->total - $inv->paid_amount),
+                    'status'         => $inv->status instanceof \BackedEnum ? $inv->status->value : $inv->status,
+                    'due_date'       => $inv->due_date?->format('Y-m-d'),
+                    'next_installment_no' => $installmentCount + 1,
+                ];
+            });
+
+        $totalDue = $dueInvoices->sum('remaining');
+
+        return response()->json([
+            'found'   => true,
+            'student' => [
+                'id'                    => $student->id,
+                'student_number'        => $student->student_number,
+                'full_name'             => $student->user?->name ?? $student->full_name,
+                'program'               => $student->program?->name,
+                'tuition_fee'           => (float) ($student->tuition_fee ?? 0),
+                'registration_fee'      => (float) ($student->registration_fee ?? 0),
+                'total_fees'            => (float) (($student->tuition_fee ?? 0) + ($student->registration_fee ?? 0)),
+                'finance_status'        => $student->finance_status instanceof \BackedEnum ? $student->finance_status->value : $student->finance_status,
+                'finance_status_label'  => match ($student->finance_status instanceof \BackedEnum ? $student->finance_status->value : $student->finance_status) {
+                    'paid'    => 'مدفوع',
+                    'partial' => 'مدفوع جزئيًا',
+                    'waived'  => 'معفى',
+                    default   => 'معلق',
+                },
+                'accountant_name'       => $student->accountant_name,
+            ],
+            'due_invoices' => $dueInvoices,
+            'total_due'    => $totalDue,
+        ]);
+    }
+
+    public function store(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'invoice_id'         => ['required', 'integer', 'exists:invoices,id'],
+            'amount'             => ['required', 'numeric', 'min:0.01'],
+            'payment_date'       => ['required', 'date'],
+            'method'             => ['required', 'in:cash,bank,cheque'],
+            'reference_number'   => ['nullable', 'string', 'max:100', 'required_if:method,bank,cheque'],
+            'notes'              => ['nullable', 'string', 'max:500'],
+            'receipt_image'      => ['nullable', 'image', 'mimes:jpg,jpeg,png,pdf', 'max:4096'],
+        ]);
+
+        $invoice = Invoice::findOrFail($validated['invoice_id']);
+        $amount  = (float) $validated['amount'];
+        $remaining = (float) $invoice->total - (float) $invoice->paid_amount;
+
+        if ($amount > $remaining + 0.001) {
+            throw ValidationException::withMessages([
+                'amount' => 'المبلغ المدفوع (' . number_format($amount, 2) . ') أكبر من المتبقي (' . number_format($remaining, 2) . ').',
+            ]);
+        }
+
+        // رقم الدفعة في التقسيط (تلقائي)
+        $installmentNo = Payment::where('invoice_id', $invoice->id)->count() + 1;
+
+        // رفع صورة الإشعار (اختياري)
+        $imagePath = null;
+        if ($request->hasFile('receipt_image')) {
+            $imagePath = $request->file('receipt_image')
+                ->store('receipts/' . now()->format('Y/m'), 'public');
+        }
+
+        $payment = Payment::create([
+            'invoice_id'       => $invoice->id,
+            'amount'           => $amount,
+            'payment_date'     => $validated['payment_date'],
+            'method'           => $validated['method'],
+            'reference_number' => $validated['reference_number'] ?? null,
+            'received_by'      => auth()->id(),
+            'notes'            => $validated['notes'] ?? null,
+            'receipt_image'    => $imagePath,
+            'installment_no'   => $installmentNo,
+        ]);
+
+        $this->recalcInvoice($invoice);
+
+        app(AuditService::class)->log(
+            'created',
+            $payment,
+            [],
+            $payment->only(['invoice_id', 'amount', 'method', 'reference_number', 'installment_no'])
+        );
+
+        return redirect()
+            ->route('finance.payments.receipt', $payment)
+            ->with('success', 'تم تسجيل الدفعة رقم ' . $payment->id . ' بنجاح. جاري عرض الإيصال...');
+    }
+
+    public function show(Payment $payment): View
+    {
+        $payment->load(['invoice.student.user', 'invoice.student.program', 'receiver']);
+        return view('finance.payments.show', compact('payment'));
+    }
+
+    /**
+     * عرض الإيصال (نسختان: طالب + مالية) — A4 أفقي
+     */
+    public function receipt(Payment $payment): View
+    {
+        $payment->load(['invoice.student.user', 'invoice.student.program', 'invoice.semester', 'receiver']);
+        $student = $payment->invoice->student;
+        $invoice = $payment->invoice;
+
+        $totalPaidOnInvoice = (float) Payment::where('invoice_id', $invoice->id)->sum('amount');
+        $remaining          = (float) $invoice->total - $totalPaidOnInvoice;
+
+        return view('finance.payments.receipt', [
+            'payment'    => $payment,
+            'invoice'    => $invoice,
+            'student'    => $student,
+            'totalPaid'  => $totalPaidOnInvoice,
+            'remaining'  => max(0, $remaining),
+            'receiptNo'  => 'RCPT-' . $payment->created_at->format('Y') . '-' . str_pad((string) $payment->id, 6, '0', STR_PAD_LEFT),
+        ]);
+    }
+
+    public function destroy(Payment $payment): RedirectResponse
+    {
+        $invoice = $payment->invoice;
+        $payment->delete();
+        $this->recalcInvoice($invoice);
+
+        app(AuditService::class)->log('deleted', $payment);
+
+        return redirect()->route('finance.payments.index')
+            ->with('success', 'تم حذف الدفعة');
+    }
+
+    /**
+     * إعادة حساب حالة الفاتورة (paid / partial / unpaid)
+     */
+    private function recalcInvoice(Invoice $invoice): void
+    {
+        $paid  = (float) Payment::where('invoice_id', $invoice->id)->sum('amount');
+        $total = (float) $invoice->total;
+
+        $status = $paid <= 0
+            ? 'unpaid'
+            : ($paid + 0.001 >= $total ? 'paid' : 'partial');
+
+        $invoice->update([
+            'paid_amount' => $paid,
+            'status'      => $status,
+        ]);
+
+        // تحديث حالة الطالب المالية
+        $student = $invoice->student;
+        if ($student) {
+            $allInvoices = Invoice::where('student_id', $student->id)->get();
+            $allTotal    = (float) $allInvoices->sum('total');
+            $allPaid     = (float) $allInvoices->sum('paid_amount');
+
+            $financeStatus = $allPaid <= 0
+                ? 'pending'
+                : ($allPaid + 0.001 >= $allTotal ? 'paid' : 'partial');
+
+            $student->update(['finance_status' => $financeStatus]);
+        }
+    }
+}

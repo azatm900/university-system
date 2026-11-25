@@ -1,0 +1,27 @@
+@extends('layouts.app')
+@section('title', 'تعديل دفعة')
+@section('content')
+<div class="card max-w-2xl mx-auto p-6">
+    <form method="POST" action="{{ route('finance.payments.update', $payment) }}" class="space-y-4">
+        @csrf @method('PUT')
+        <div><label class="block text-sm font-semibold mb-1">الفاتورة</label>
+            <select name="invoice_id" required class="input-field">
+                @foreach (($invoices ?? \App\Models\Invoice::orderBy('id','desc')->get()) as $inv)
+                    <option value="{{ $inv->id }}" @selected(old('invoice_id', $payment->invoice_id)==$inv->id)>{{ $inv->invoice_number }}</option>
+                @endforeach
+            </select></div>
+        <div><label class="block text-sm font-semibold mb-1">المبلغ</label><input name="amount" type="number" step="0.01" min="0.01" value="{{ old('amount', $payment->amount) }}" required class="input-field"></div>
+        <div><label class="block text-sm font-semibold mb-1">تاريخ الدفع</label><input name="payment_date" type="date" value="{{ old('payment_date', $payment->payment_date) }}" required class="input-field"></div>
+        <div><label class="block text-sm font-semibold mb-1">طريقة الدفع</label>
+            <select name="method" required class="input-field">
+                @php $cm = $payment->method instanceof \BackedEnum ? $payment->method->value : $payment->method; @endphp
+                @foreach (\App\Enums\PaymentMethod::cases() as $m)
+                    <option value="{{ $m->value }}" @selected(old('method', $cm)===$m->value)>@include('partials.enum-label', ['value' => $m])</option>
+                @endforeach
+            </select></div>
+        <div><label class="block text-sm font-semibold mb-1">رقم المرجع</label><input name="reference_number" value="{{ old('reference_number', $payment->reference_number) }}" class="input-field"></div>
+        <div><label class="block text-sm font-semibold mb-1">ملاحظات</label><textarea name="notes" rows="2" class="input-field">{{ old('notes', $payment->notes) }}</textarea></div>
+        <div class="flex gap-2"><button class="btn-primary">حفظ</button><a href="{{ route('finance.payments.index') }}" class="btn-secondary">إلغاء</a></div>
+    </form>
+</div>
+@endsection

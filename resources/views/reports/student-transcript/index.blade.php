@@ -1,0 +1,45 @@
+@extends('layouts.app')
+
+@section('title', 'كشف درجات طالب')
+
+@section('content')
+<div class="container mx-auto p-6" dir="rtl">
+    <div class="mb-4">
+        <a href="{{ route('reports.index') }}" class="text-maroon-700 hover:underline">← التقارير</a>
+    </div>
+    <h1 class="text-2xl font-bold mb-4 text-maroon-700">كشف درجات طالب</h1>
+    <p class="text-gray-600 mb-4">اختر طالباً من القائمة.</p>
+
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">الرقم الجامعي</th>
+                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">الاسم</th>
+                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">البرنامج</th>
+                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">الحالة</th>
+                    <th class="px-4 py-3"></th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                @forelse($students as $s)
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 text-sm font-mono">{{ $s->student_number }}</td>
+                        <td class="px-4 py-3 text-sm">{{ $s->user?->name ?? '—' }}</td>
+                        <td class="px-4 py-3 text-sm">{{ $s->program?->name ?? '—' }}</td>
+                        <td class="px-4 py-3 text-sm">
+                            @include('partials.enum-label', ['value' => $s->status])
+                        </td>
+                        <td class="px-4 py-3 text-sm text-left">
+                            <a href="{{ route('reports.student-transcript.show', $s) }}"
+                               class="bg-maroon-700 text-white px-3 py-1 rounded text-xs hover:bg-maroon-800">عرض</a>
+                        </td>
+                    </tr>
+                @empty
+                    <tr><td colspan="5" class="px-4 py-6 text-center text-gray-500">لا يوجد طلاب مسجّلون.</td></tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
+</div>
+@endsection

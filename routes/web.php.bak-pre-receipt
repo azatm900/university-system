@@ -1,0 +1,160 @@
+<?php
+
+use Illuminate\Support\Facades\Route;
+use Illuminate\Http\Request;
+use App\Http\Controllers\Admin\SettingController;
+use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Registrar\ProgramController;
+use App\Http\Controllers\Registrar\CourseController;
+use App\Http\Controllers\Registrar\StudentController;
+use App\Http\Controllers\Registrar\RegistrationController;
+use App\Http\Controllers\Finance\InvoiceController;
+use App\Http\Controllers\Finance\PaymentController;
+use App\Http\Controllers\Results\ResultController;
+use App\Http\Controllers\DashboardController;
+
+Route::get('/login', fn () => view('auth.login'))->name('login');
+Route::post('/login', function (Request $request) {
+    $cred = $request->validate(['email' => 'required|email', 'password' => 'required']);
+    if (auth()->attempt($cred, $request->boolean('remember'))) {
+        $request->session()->regenerate();
+        return redirect()->intended(route('dashboard'));
+    }
+    return back()->withErrors(['email' => 'Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„Ø¯Ø®ÙˆÙ„ ØºÙŠØ± ØµØ­ÙŠØ­Ø©'])->onlyInput('email');
+})->name('login.attempt');
+
+Route::post('/logout', function (Request $request) {
+    auth()->logout();
+    $request->session()->invalidate();
+    $request->session()->regenerateToken();
+    return redirect()->route('login');
+})->name('logout');
+
+Route::get('locale/{locale}', function ($locale) {
+    if (in_array($locale, ['ar', 'en'], true)) session(['locale' => $locale]);
+    return back();
+})->name('locale.switch');
+
+Route::get('api/notifications', function () {
+    $items = [];
+    $total = 0;
+    $sources = [
+        ['App\\Models\\Student', 'created_at', 'new', 'graduation-cap', 'طالب جديد هذا الأسبوع', 'registrar.students.index'],
+        ['App\\Models\\Invoice', 'status', 'unpaid', 'receipt', 'فاتورة غير مدفوعة', 'finance.invoices.index'],
+        ['App\\Models\\Payment', 'status', 'pending', 'wallet', 'دفعة معلّقة', 'finance.payments.index'],
+    ];
+    foreach ($sources as $s) {
+        $model = $s[0]; $col = $s[1]; $val = $s[2]; $icon = $s[3]; $label = $s[4]; $routeName = $s[5];
+        if (!class_exists($model)) continue;
+        try {
+            $q = $model::query();
+            $c = $val === 'new' ? $q->where($col, '>=', now()->subDays(7))->count() : $q->where($col, $val)->count();
+            if ($c > 0) {
+                $items[] = ['icon' => $icon, 'text' => "$c $label", 'url' => route($routeName), 'count' => $c];
+                $total += $c;
+            }
+        } catch (\Throwable $e) {}
+    }
+    return response()->json(['items' => $items, 'total' => $total]);
+})->middleware(['auth', 'active', 'role:admin,registrar,finance'])->name('api.notifications');
+
+// ─── Landing Page (public) ─────────────────────────────────────
+Route::get('/', [\App\Http\Controllers\LandingController::class, 'index'])->name('landing');
+Route::middleware(['auth', 'active'])->group(function () {
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function () {
+        Route::prefix('settings')->name('settings.')->group(function () {
+            Route::get('/', [SettingController::class, 'index'])->name('index');
+            Route::get('{key}/edit', [SettingController::class, 'edit'])->name('edit');
+            Route::put('{key}', [SettingController::class, 'update'])->name('update');
+        });
+        Route::resource('users', UserController::class);
+        Route::patch('users/{user}/toggle', [UserController::class, 'toggleActive'])->name('users.toggle');
+        Route::post('users/{user}/reset-password', [UserController::class, 'resetPassword'])->name('users.reset-password');
+    });
+
+    Route::middleware('role:admin,registrar')->prefix('registrar')->name('registrar.')->group(function () {
+        Route::resource('programs', ProgramController::class);
+        Route::resource('courses', CourseController::class);
+        Route::resource('students', StudentController::class);
+        Route::post('students/{id}/restore',      [StudentController::class, 'restore'])->name('students.restore');
+        Route::delete('students/{id}/force',      [StudentController::class, 'forceDestroy'])->name('students.force-destroy');
+        Route::resource('registrations', RegistrationController::class);
+    });
+    Route::middleware('role:admin,finance')->prefix('finance')->name('finance.')->group(function () {
+        Route::get('students/lookup', [InvoiceController::class, 'lookupStudent'])
+            ->name('students.lookup');
+        Route::get('students/{student}/due-invoices', [PaymentController::class, 'dueInvoices'])
+            ->name('students.due-invoices');
+        Route::resource('invoices', InvoiceController::class);
+        Route::resource('payments', PaymentController::class);
+    });
+
+    Route::middleware('role:admin,results')->prefix('results')->name('results.')->group(function () {
+        Route::resource('results', ResultController::class);
+        Route::post('results/{result}/publish', [ResultController::class, 'publish'])->name('results.publish');
+        Route::post('results/{result}/unpublish', [ResultController::class, 'unpublish'])->name('results.unpublish');
+    });
+
+    // ============ Reports (Step 13) ============
+    Route::prefix('reports')->name('reports.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Reports\ReportController::class, 'index'])->name('index');
+
+        // 1) Student Transcript
+        Route::middleware('role:admin,results')->group(function () {
+            Route::get('student-transcript', [\App\Http\Controllers\Reports\ReportController::class, 'studentTranscriptIndex'])->name('student-transcript.index');
+            Route::get('student-transcript/{student}', [\App\Http\Controllers\Reports\ReportController::class, 'studentTranscriptShow'])->name('student-transcript.show');
+            Route::get('student-transcript/{student}/excel', [\App\Http\Controllers\Reports\ReportController::class, 'studentTranscriptExcel'])->name('student-transcript.excel');
+            Route::get('student-transcript/{student}/pdf', [\App\Http\Controllers\Reports\ReportController::class, 'studentTranscriptPdf'])->name('student-transcript.pdf');
+        });
+
+        // 2) Semester Registrations
+        Route::middleware('role:admin,registrar')->group(function () {
+            Route::get('semester-registrations', [\App\Http\Controllers\Reports\ReportController::class, 'semesterRegistrationsIndex'])->name('semester-registrations.index');
+            Route::get('semester-registrations/{semester}', [\App\Http\Controllers\Reports\ReportController::class, 'semesterRegistrationsShow'])->name('semester-registrations.show');
+            Route::get('semester-registrations/{semester}/excel', [\App\Http\Controllers\Reports\ReportController::class, 'semesterRegistrationsExcel'])->name('semester-registrations.excel');
+            Route::get('semester-registrations/{semester}/pdf', [\App\Http\Controllers\Reports\ReportController::class, 'semesterRegistrationsPdf'])->name('semester-registrations.pdf');
+        });
+
+        // 3) Student Financial
+        Route::middleware('role:admin,finance')->group(function () {
+            Route::get('student-financial', [\App\Http\Controllers\Reports\ReportController::class, 'studentFinancialIndex'])->name('student-financial.index');
+            Route::get('student-financial/{student}', [\App\Http\Controllers\Reports\ReportController::class, 'studentFinancialShow'])->name('student-financial.show');
+            Route::get('student-financial/{student}/excel', [\App\Http\Controllers\Reports\ReportController::class, 'studentFinancialExcel'])->name('student-financial.excel');
+            Route::get('student-financial/{student}/pdf', [\App\Http\Controllers\Reports\ReportController::class, 'studentFinancialPdf'])->name('student-financial.pdf');
+        });
+
+        // 4) Semester Revenue
+        Route::middleware('role:admin,finance')->group(function () {
+            Route::get('semester-revenue', [\App\Http\Controllers\Reports\ReportController::class, 'semesterRevenueIndex'])->name('semester-revenue.index');
+            Route::get('semester-revenue/{semester}', [\App\Http\Controllers\Reports\ReportController::class, 'semesterRevenueShow'])->name('semester-revenue.show');
+            Route::get('semester-revenue/{semester}/excel', [\App\Http\Controllers\Reports\ReportController::class, 'semesterRevenueExcel'])->name('semester-revenue.excel');
+            Route::get('semester-revenue/{semester}/pdf', [\App\Http\Controllers\Reports\ReportController::class, 'semesterRevenuePdf'])->name('semester-revenue.pdf');
+        });
+
+        // 5) General Statistics
+        Route::middleware('role:admin')->group(function () {
+            Route::get('general-statistics', [\App\Http\Controllers\Reports\ReportController::class, 'generalStatisticsShow'])->name('general-statistics.show');
+            Route::get('general-statistics/excel', [\App\Http\Controllers\Reports\ReportController::class, 'generalStatisticsExcel'])->name('general-statistics.excel');
+            Route::get('general-statistics/pdf', [\App\Http\Controllers\Reports\ReportController::class, 'generalStatisticsPdf'])->name('general-statistics.pdf');
+        });
+    });
+});
+// ─── Phase G1: Profile routes ─────────────────────────────────────
+Route::middleware('auth')->group(function () {
+    Route::get('/profile', [\App\Http\Controllers\ProfileController::class, 'edit'])->name('profile.edit');
+    Route::patch('/profile', [\App\Http\Controllers\ProfileController::class, 'update'])->name('profile.update');
+    Route::get('/profile/password', [\App\Http\Controllers\ProfileController::class, 'changePassword'])->name('profile.password');
+    Route::patch('/profile/password', [\App\Http\Controllers\ProfileController::class, 'updatePassword'])->name('profile.password.update');
+});
+// ─── Phase G2: Password reset routes ──────────────────────────────
+Route::middleware('guest')->group(function () {
+    Route::get('/forgot-password', [\App\Http\Controllers\Auth\ForgotPasswordController::class, 'showLinkRequestForm'])->name('password.request');
+    Route::post('/forgot-password', [\App\Http\Controllers\Auth\ForgotPasswordController::class, 'sendResetLinkEmail'])->name('password.email');
+    Route::get('/reset-password/{token}', [\App\Http\Controllers\Auth\ResetPasswordController::class, 'showResetForm'])->name('password.reset');
+    Route::post('/reset-password', [\App\Http\Controllers\Auth\ResetPasswordController::class, 'reset'])->name('password.update');
+});
+
+// ─── G3-Fix: admin/users reset-password-form (standalone) ───
+Route::middleware('auth')->get('admin/users/{user}/reset-password-form', [\App\Http\Controllers\Admin\UserController::class, 'showResetPasswordForm'])->name('admin.users.reset-password-form');

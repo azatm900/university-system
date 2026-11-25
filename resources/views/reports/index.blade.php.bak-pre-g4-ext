@@ -1,0 +1,151 @@
+@extends('layouts.app')
+
+@section('title', __('reports.title'))
+
+@section('content')
+<x-page-header :title="__('reports.title')" :subtitle="__('reports.subtitle')" />
+
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    {{-- 1. Student Transcript --}}
+    <a href="{{ route('reports.student-transcript.index') }}" class="block group">
+        <x-card :padding="'p-5'" class="h-full transition hover:shadow-lg">
+            <div class="flex items-start gap-4">
+                <div class="flex-shrink-0 w-12 h-12 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center">
+                    <x-icon name="graduation-cap" :size="24" />
+                </div>
+                <div class="flex-1">
+                    <h3 class="font-bold text-lg mb-1 group-hover:text-brand-700">{{ __('reports.student_transcript') }}</h3>
+                    <p class="text-sm text-gray-500">{{ __('reports.student_transcript_desc') }}</p>
+                </div>
+            </div>
+        </x-card>
+    </a>
+
+    {{-- 2. Semester Registrations --}}
+    <a href="{{ route('reports.semester-registrations.index') }}" class="block group">
+        <x-card :padding="'p-5'" class="h-full transition hover:shadow-lg">
+            <div class="flex items-start gap-4">
+                <div class="flex-shrink-0 w-12 h-12 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center">
+                    <x-icon name="clipboard" :size="24" />
+                </div>
+                <div class="flex-1">
+                    <h3 class="font-bold text-lg mb-1 group-hover:text-brand-700">{{ __('reports.semester_registrations') }}</h3>
+                    <p class="text-sm text-gray-500">{{ __('reports.semester_registrations_desc') }}</p>
+                </div>
+            </div>
+        </x-card>
+    </a>
+
+    {{-- 3. Student Financial --}}
+    <a href="{{ route('reports.student-financial.index') }}" class="block group">
+        <x-card :padding="'p-5'" class="h-full transition hover:shadow-lg">
+            <div class="flex items-start gap-4">
+                <div class="flex-shrink-0 w-12 h-12 rounded-full bg-green-100 text-green-700 flex items-center justify-center">
+                    <x-icon name="wallet" :size="24" />
+                </div>
+                <div class="flex-1">
+                    <h3 class="font-bold text-lg mb-1 group-hover:text-brand-700">{{ __('reports.student_financial') }}</h3>
+                    <p class="text-sm text-gray-500">{{ __('reports.student_financial_desc') }}</p>
+                </div>
+            </div>
+        </x-card>
+    </a>
+
+    {{-- 4. Semester Revenue --}}
+    <a href="{{ route('reports.semester-revenue.index') }}" class="block group">
+        <x-card :padding="'p-5'" class="h-full transition hover:shadow-lg">
+            <div class="flex items-start gap-4">
+                <div class="flex-shrink-0 w-12 h-12 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center">
+                    <x-icon name="trending-up" :size="24" />
+                </div>
+                <div class="flex-1">
+                    <h3 class="font-bold text-lg mb-1 group-hover:text-brand-700">{{ __('reports.semester_revenue') }}</h3>
+                    <p class="text-sm text-gray-500">{{ __('reports.semester_revenue_desc') }}</p>
+                </div>
+            </div>
+        </x-card>
+    </a>
+
+    {{-- 5. General Statistics --}}
+    <a href="{{ route('reports.general-statistics.show') }}" class="block group">
+        <x-card :padding="'p-5'" class="h-full transition hover:shadow-lg">
+            <div class="flex items-start gap-4">
+                <div class="flex-shrink-0 w-12 h-12 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center">
+                    <x-icon name="chart-bar" :size="24" />
+                </div>
+                <div class="flex-1">
+                    <h3 class="font-bold text-lg mb-1 group-hover:text-brand-700">{{ __('reports.general_statistics') }}</h3>
+                    <p class="text-sm text-gray-500">{{ __('reports.general_statistics_desc') }}</p>
+                </div>
+            </div>
+        </x-card>
+            {{-- ── تفاصيل إضافية: أحدث التسجيلات والفعاليات ── --}}
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 animate-fade-in-up mt-4" style="animation-delay:0.16s">
+        
+        {{-- بطاقة: أحدث التسجيلات --}}
+        <x-card :title="__('dashboard.latest_registrations') ?? 'أحدث التسجيلات'" class="lg:col-span-2">
+            @if(isset($recentStudents) && $recentStudents->isNotEmpty())
+                <div class="overflow-x-auto">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>{{ __('common.name') ?? 'الاسم' }}</th>
+                                <th>{{ __('common.status') ?? 'الحالة' }}</th>
+                                <th>{{ __('common.date') ?? 'التاريخ' }}</th>
+                                <th class="text-end">{{ __('common.actions') ?? 'إجراءات' }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($recentStudents->take(5) as $s)
+                                <tr>
+                                    <td>
+                                        <div class="flex items-center gap-2">
+                                            <div class="avatar-circle avatar-sm">{{ mb_strtoupper(mb_substr($s->user->name ?? 'S', 0, 1)) }}</div>
+                                            <span class="font-medium">{{ $s->user->name ?? ('#' . $s->id) }}</span>
+                                        </div>
+                                    </td>
+                                    <td><span class="badge badge-success">{{ __('common.active') ?? 'نشط' }}</span></td>
+                                    <td class="text-muted text-sm">{{ $s->created_at?->format('Y-m-d') ?? '-' }}</td>
+                                    <td class="text-end">
+                                        <a href="{{ route('registrar.students.show', $s) }}" class="btn btn-sm btn-ghost">
+                                            <x-icon name="eye" :size="14" />
+                                        </a>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @else
+                <x-empty-state icon="📋" :message="__('dashboard.no_recent_registrations') ?? 'لا توجد تسجيلات حديثة'" />
+            @endif
+        </x-card>
+
+        {{-- بطاقة: حالة النظام --}}
+        <x-card :title="__('dashboard.system_status') ?? 'حالة النظام'">
+            <div class="space-y-4">
+                <div class="flex items-center justify-between p-3 bg-surface-2 rounded-lg">
+                    <div class="flex items-center gap-3">
+                        <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                        <span class="text-sm font-medium">{{ __('dashboard.server_status') ?? 'حالة الخادم' }}</span>
+                    </div>
+                    <span class="badge badge-success">{{ __('common.online') ?? 'متصل' }}</span>
+                </div>
+                <div class="flex items-center justify-between p-3 bg-surface-2 rounded-lg">
+                    <div class="flex items-center gap-3">
+                        <div class="w-2 h-2 rounded-full bg-blue-500"></div>
+                        <span class="text-sm font-medium">{{ __('dashboard.db_status') ?? 'قاعدة البيانات' }}</span>
+                    </div>
+                    <span class="badge badge-primary">{{ __('common.connected') ?? 'متصل' }}</span>
+                </div>
+                <div class="pt-2 border-t border-default">
+                    <p class="text-xs text-muted text-center">
+                        {{ __('dashboard.last_backup') ?? 'آخر نسخة احتياطية' }}: {{ now()->format('Y-m-d H:i') }}
+                    </p>
+                </div>
+            </div>
+        </x-card>
+    </div>
+    </a>
+</div>
+@endsection

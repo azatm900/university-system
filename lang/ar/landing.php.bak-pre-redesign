@@ -1,0 +1,82 @@
+<?php
+return [
+    // Navbar
+    'nav_home' => 'الرئيسية',
+    'nav_features' => 'الخدمات',
+    'nav_programs' => 'البرامج',
+    'nav_about' => 'عن النظام',
+    'login' => 'دخول',
+    'dashboard' => 'لوحة التحكم',
+
+    // Hero
+    'hero_badge' => 'مرخصة من وزارة التعليم',
+    'hero_title' => 'نظام إدارة',
+    'hero_title_accent' => 'جامعة العلوم الصحية',
+    'hero_subtitle' => 'منصة متكاملة لإدارة الطلاب والمقررات والمالية والنتائج — بتصميم عصري وسرعة فائقة.',
+    'cta_login' => 'دخول النظام',
+    'cta_learn' => 'اكتشف المزيد',
+
+    // Features
+    'features_title' => 'خدمات متكاملة',
+    'features_subtitle' => 'كل ما تحتاجه لإدارة الجامعة في مكان واحد',
+    'feature_students_title' => 'إدارة الطلاب',
+    'feature_students_desc' => 'تسجيل، متابعة، وتحديث بيانات الطلاب بسهولة.',
+    'feature_courses_title' => 'إدارة المقررات',
+    'feature_courses_desc' => 'تنظيم المقررات والبرامج الأكاديمية.',
+    'feature_finance_title' => 'المالية',
+    'feature_finance_desc' => 'فواتير، مدفوعات، وتقارير مالية شاملة.',
+    'feature_results_title' => 'النتائج',
+    'feature_results_desc' => 'إدخال ونشر نتائج الطلاب بشفافية.',
+    'feature_reports_title' => 'التقارير',
+    'feature_reports_desc' => 'تقارير PDF/Excel لكل الأقسام.',
+    'feature_security_title' => 'الأمان',
+    'feature_security_desc' => 'صلاحيات دقيقة لكل دور في النظام.',
+
+    // Stats
+    'stats_title' => 'أرقام تتحدث',
+    'stats_students' => 'طالب',
+    'stats_programs' => 'برنامج',
+    'stats_courses' => 'مقرر',
+    'stats_registrations' => 'تسجيل',
+    'stats_users' => 'مستخدم',
+
+    // Programs
+    'programs_title' => 'البرامج الأكاديمية',
+    'programs_subtitle' => 'برامج معتمدة تفتح آفاقاً مهنية',
+    'programs_empty' => 'لا توجد برامج بعد',
+    'program_code' => 'الرمز',
+
+    // How it works
+    'how_title' => 'كيف يعمل؟',
+    'how_subtitle' => 'ثلاث خطوات بسيطة',
+    'how_step1_title' => 'التسجيل',
+    'how_step1_desc' => 'سجّل طلابك وبياناتهم.',
+    'how_step2_title' => 'المتابعة',
+    'how_step2_desc' => 'تابع التسجيلات والمدفوعات.',
+    'how_step3_title' => 'النتائج',
+    'how_step3_desc' => 'أدخل النتائج وانشرها.',
+
+    // Roles
+    'roles_title' => 'أدوار متكاملة',
+    'roles_subtitle' => 'كل دور له صلاحياته',
+    'role_admin' => 'مدير النظام',
+    'role_admin_desc' => 'صلاحيات كاملة على كل النظام.',
+    'role_registrar' => 'مسجل',
+    'role_registrar_desc' => 'إدارة الطلاب والمقررات.',
+    'role_finance' => 'مالي',
+    'role_finance_desc' => 'إدارة الفواتير والمدفوعات.',
+    'role_results' => 'نتائج',
+    'role_results_desc' => 'إدخال ونشر النتائج.',
+
+    // CTA
+    'cta_title' => 'جاهز للبدء؟',
+    'cta_subtitle' => 'سجّل دخولك الآن وابدأ استخدام النظام.',
+    'cta_button' => 'دخول النظام',
+
+    // Footer
+    'footer_about' => 'نظام إدارة جامعة العلوم الصحية — منصة عربية متكاملة.',
+    'footer_links' => 'روابط سريعة',
+    'footer_contact' => 'تواصل',
+    'footer_rights' => 'جميع الحقوق محفوظة',
+    'footer_university' => 'جامعة العلوم الصحية',
+];

@@ -1,0 +1,272 @@
+<?php
+
+namespace App\Http\Controllers\Reports;
+
+use App\Exports\GeneralStatisticsExport;
+use App\Exports\SemesterRegistrationsExport;
+use App\Exports\SemesterRevenueExport;
+use App\Exports\StudentFinancialExport;
+use App\Exports\StudentTranscriptExport;
+use App\Http\Controllers\Controller;
+use App\Models\Course;
+use App\Models\Invoice;
+use App\Models\Payment;
+use App\Models\Program;
+use App\Models\Registration;
+use App\Models\Result;
+use App\Models\Semester;
+use App\Models\Student;
+use App\Services\GPAService;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Maatwebsite\Excel\Facades\Excel;
+
+class ReportController extends Controller
+{
+    public function __construct(private GPAService $gpa) {}
+
+    // ---------- Hub ----------
+    public function index(\Illuminate\Http\Request $request)
+    {
+        $role = $request->user()?->role?->value ?? 'guest';
+
+        // تعريف التقارير مع الأدوار المسموحة (مطابق تماماً لـ routes/web.php)
+        $allReports = [
+            'student-transcript' => [
+                'roles' => ['admin', 'results'],
+                'route' => 'reports.student-transcript.index',
+                'icon'  => 'graduation-cap',
+                'color' => 'brand',
+                'title' => 'reports.student_transcript',
+                'desc'  => 'reports.student_transcript_desc',
+            ],
+            'semester-registrations' => [
+                'roles' => ['admin', 'registrar'],
+                'route' => 'reports.semester-registrations.index',
+                'icon'  => 'clipboard',
+                'color' => 'blue',
+                'title' => 'reports.semester_registrations',
+                'desc'  => 'reports.semester_registrations_desc',
+            ],
+            'student-financial' => [
+                'roles' => ['admin', 'finance'],
+                'route' => 'reports.student-financial.index',
+                'icon'  => 'wallet',
+                'color' => 'green',
+                'title' => 'reports.student_financial',
+                'desc'  => 'reports.student_financial_desc',
+            ],
+            'semester-revenue' => [
+                'roles' => ['admin', 'finance'],
+                'route' => 'reports.semester-revenue.index',
+                'icon'  => 'trending-up',
+                'color' => 'purple',
+                'title' => 'reports.semester_revenue',
+                'desc'  => 'reports.semester_revenue_desc',
+            ],
+            'general-statistics' => [
+                'roles' => ['admin'],
+                'route' => 'reports.general-statistics.show',
+                'icon'  => 'chart-bar',
+                'color' => 'orange',
+                'title' => 'reports.general_statistics',
+                'desc'  => 'reports.general_statistics_desc',
+            ],
+        ];
+
+        // فلترة حسب الدور
+        $visibleReports = collect($allReports)
+            ->filter(fn($r) => in_array($role, $r['roles'], true))
+            ->all();
+
+        return view('reports.index', compact('visibleReports', 'role'));
+    }
+
+    // ---------- 1) Student Transcript ----------
+    public function studentTranscriptIndex()
+    {
+        $students = Student::with('user', 'program')->orderBy('student_number')->get();
+        return view('reports.student-transcript.index', compact('students'));
+    }
+
+    public function studentTranscriptShow(Student $student)
+    {
+        $student->load('user', 'program');
+        $results = $student->results()
+            ->with('registration.course', 'registration.semester')
+            ->orderByDesc('created_at')
+            ->get();
+        $cumulative = $this->gpa->cumulativeGPA($student);
+        return view('reports.student-transcript.show', compact('student', 'results', 'cumulative'));
+    }
+
+    public function studentTranscriptExcel(Student $student)
+    {
+        return Excel::download(new StudentTranscriptExport($student), 'transcript-' . $student->student_number . '.xlsx');
+    }
+
+    public function studentTranscriptPdf(Student $student)
+    {
+        $student->load('user', 'program');
+        $results = $student->results()
+            ->with('registration.course', 'registration.semester')
+            ->published()
+            ->get();
+        $cumulative = $this->gpa->cumulativeGPA($student);
+        $pdf = Pdf::loadView('reports.pdf.student-transcript', compact('student', 'results', 'cumulative'));
+        return $pdf->download('transcript-' . $student->student_number . '.pdf');
+    }
+
+    // ---------- 2) Semester Registrations ----------
+    public function semesterRegistrationsIndex()
+    {
+        $semesters = Semester::orderByDesc('start_date')->get();
+        return view('reports.semester-registrations.index', compact('semesters'));
+    }
+
+    public function semesterRegistrationsShow(Semester $semester)
+    {
+        $registrations = $semester->registrations()
+            ->with('student.user', 'student.program', 'course')
+            ->orderBy('registered_at')
+            ->get();
+        return view('reports.semester-registrations.show', compact('semester', 'registrations'));
+    }
+
+    public function semesterRegistrationsExcel(Semester $semester)
+    {
+        return Excel::download(new SemesterRegistrationsExport($semester), 'registrations-' . $semester->code . '.xlsx');
+    }
+
+    public function semesterRegistrationsPdf(Semester $semester)
+    {
+        $registrations = $semester->registrations()
+            ->with('student.user', 'student.program', 'course')
+            ->orderBy('registered_at')
+            ->get();
+        $pdf = Pdf::loadView('reports.pdf.semester-registrations', compact('semester', 'registrations'));
+        return $pdf->download('registrations-' . $semester->code . '.pdf');
+    }
+
+    // ---------- 3) Student Financial ----------
+    public function studentFinancialIndex()
+    {
+        $students = Student::with('user', 'program')->orderBy('student_number')->get();
+        return view('reports.student-financial.index', compact('students'));
+    }
+
+    public function studentFinancialShow(Student $student)
+    {
+        $student->load('user', 'program');
+        $invoices = $student->invoices()
+            ->with('semester', 'payments')
+            ->orderByDesc('created_at')
+            ->get();
+        $billedCents = $invoices->sum(fn ($i) => (int) round(((float) $i->total) * 100));
+        $paidCents   = $invoices->sum(fn ($i) => (int) round(((float) $i->paid_amount) * 100));
+        $totalBilled = $billedCents / 100;
+        $totalPaid   = $paidCents / 100;
+        $balance     = ($billedCents - $paidCents) / 100;
+        return view('reports.student-financial.show', compact('student', 'invoices', 'totalBilled', 'totalPaid', 'balance'));
+    }
+
+    public function studentFinancialExcel(Student $student)
+    {
+        return Excel::download(new StudentFinancialExport($student), 'financial-' . $student->student_number . '.xlsx');
+    }
+
+    public function studentFinancialPdf(Student $student)
+    {
+        $student->load('user', 'program');
+        $invoices = $student->invoices()->with('semester', 'payments')->orderByDesc('created_at')->get();
+        $billedCents = $invoices->sum(fn ($i) => (int) round(((float) $i->total) * 100));
+        $paidCents   = $invoices->sum(fn ($i) => (int) round(((float) $i->paid_amount) * 100));
+        $totalBilled = $billedCents / 100;
+        $totalPaid   = $paidCents / 100;
+        $balance     = ($billedCents - $paidCents) / 100;
+        $pdf = Pdf::loadView('reports.pdf.student-financial', compact('student', 'invoices', 'totalBilled', 'totalPaid', 'balance'));
+        return $pdf->download('financial-' . $student->student_number . '.pdf');
+    }
+
+    // ---------- 4) Semester Revenue ----------
+    public function semesterRevenueIndex()
+    {
+        $semesters = Semester::orderByDesc('start_date')->get();
+        return view('reports.semester-revenue.index', compact('semesters'));
+    }
+
+    public function semesterRevenueShow(Semester $semester)
+    {
+        $payments = Payment::whereHas('invoice', fn ($q) => $q->where('semester_id', $semester->id))
+            ->with('invoice.student.user', 'receiver')
+            ->orderBy('payment_date')
+            ->get();
+        $totalByMethod = $payments
+            ->groupBy(fn ($p) => $p->method instanceof \BackedEnum ? $p->method->value : (string) $p->method)
+            ->map(fn ($g) => $g->sum(fn ($p) => (int) round(((float) $p->amount) * 100)));
+        $totalCents = $payments->sum(fn ($p) => (int) round(((float) $p->amount) * 100));
+        $total = $totalCents / 100;
+        return view('reports.semester-revenue.show', compact('semester', 'payments', 'totalByMethod', 'total'));
+    }
+
+    public function semesterRevenueExcel(Semester $semester)
+    {
+        return Excel::download(new SemesterRevenueExport($semester), 'revenue-' . $semester->code . '.xlsx');
+    }
+
+    public function semesterRevenuePdf(Semester $semester)
+    {
+        $payments = Payment::whereHas('invoice', fn ($q) => $q->where('semester_id', $semester->id))
+            ->with('invoice.student.user', 'receiver')
+            ->orderBy('payment_date')
+            ->get();
+        $totalByMethod = $payments
+            ->groupBy(fn ($p) => $p->method instanceof \BackedEnum ? $p->method->value : (string) $p->method)
+            ->map(fn ($g) => $g->sum(fn ($p) => (int) round(((float) $p->amount) * 100)));
+        $totalCents = $payments->sum(fn ($p) => (int) round(((float) $p->amount) * 100));
+        $total = $totalCents / 100;
+        $pdf = Pdf::loadView('reports.pdf.semester-revenue', compact('semester', 'payments', 'totalByMethod', 'total'));
+        return $pdf->download('revenue-' . $semester->code . '.pdf');
+    }
+
+    // ---------- 5) General Statistics ----------
+    private function statisticsData(): array
+    {
+        return [
+            'students_total'      => Student::count(),
+            'students_active'     => Student::where('status', 'active')->count(),
+            'programs_total'      => Program::count(),
+            'programs_active'     => Program::where('is_active', true)->count(),
+            'courses_total'       => Course::count(),
+            'courses_active'      => Course::where('is_active', true)->count(),
+            'semesters_total'     => Semester::count(),
+            'semesters_active'    => Semester::where('is_active', true)->count(),
+            'registrations_total' => Registration::count(),
+            'results_total'       => Result::count(),
+            'results_published'   => Result::published()->count(),
+            'invoices_total'      => Invoice::count(),
+            'invoices_unpaid'     => Invoice::where('status', 'unpaid')->count(),
+            'payments_total'      => Payment::count(),
+            'payments_sum'        => (int) round(((float) Payment::sum('amount')) * 100),
+            'invoices_billed_sum' => (int) round(((float) Invoice::sum('total')) * 100),
+            'invoices_paid_sum'   => (int) round(((float) Invoice::sum('paid_amount')) * 100),
+        ];
+    }
+
+    public function generalStatisticsShow()
+    {
+        $stats = $this->statisticsData();
+        return view('reports.general-statistics.show', compact('stats'));
+    }
+
+    public function generalStatisticsExcel()
+    {
+        return Excel::download(new GeneralStatisticsExport($this->statisticsData()), 'general-statistics.xlsx');
+    }
+
+    public function generalStatisticsPdf()
+    {
+        $stats = $this->statisticsData();
+        $pdf = Pdf::loadView('reports.pdf.general-statistics', compact('stats'));
+        return $pdf->download('general-statistics.pdf');
+    }
+}

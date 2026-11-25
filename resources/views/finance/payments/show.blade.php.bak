@@ -1,0 +1,21 @@
+@extends('layouts.app')
+@section('title', 'عرض دفعة')
+@section('content')
+<div class="card max-w-2xl mx-auto p-6 space-y-3">
+    <h3 class="font-semibold text-lg border-b pb-3">دفعة #{{ $payment->id }}</h3>
+    <dl class="grid grid-cols-3 gap-y-2 text-sm">
+        <dt class="text-gray-500">الفاتورة</dt><dd class="col-span-2 font-mono">{{ $payment->invoice?->invoice_number ?? '—' }}</dd>
+        <dt class="text-gray-500">الطالب</dt><dd class="col-span-2">{{ $payment->invoice?->student?->user?->name ?? '—' }}</dd>
+        <dt class="text-gray-500">المبلغ</dt><dd class="col-span-2 font-semibold">{{ number_format((float) $payment->amount, 2) }}</dd>
+        <dt class="text-gray-500">التاريخ</dt><dd class="col-span-2">{{ $payment->payment_date }}</dd>
+        <dt class="text-gray-500">الطريقة</dt><dd class="col-span-2">@include('partials.enum-label', ['value' => $payment->method])</dd>
+        <dt class="text-gray-500">المرجع</dt><dd class="col-span-2">{{ $payment->reference_number ?? '—' }}</dd>
+        <dt class="text-gray-500">المستلم</dt><dd class="col-span-2">{{ $payment->receiver?->name ?? '—' }}</dd>
+        <dt class="text-gray-500">ملاحظات</dt><dd class="col-span-2">{{ $payment->notes ?? '—' }}</dd>
+    </dl>
+    <div class="flex gap-2 pt-3 border-t">
+        <a href="{{ route('finance.payments.edit', $payment) }}" class="btn-primary">تعديل</a>
+        <a href="{{ route('finance.payments.index') }}" class="btn-secondary">رجوع</a>
+    </div>
+</div>
+@endsection

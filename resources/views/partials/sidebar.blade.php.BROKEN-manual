@@ -1,0 +1,118 @@
+﻿{{-- resources/views/partials/sidebar.blade.php — G4 (role-aware + my_info + footer) --}}
+@php
+    $role = auth()->user()->role ?? 'admin';
+@endphp
+
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <a href="{{ route('dashboard') }}" class="sidebar-brand">
+            {{ __('app.name') ?? 'نظام الجامعة' }}
+        </a>
+    </div>
+
+    <nav class="sidebar-nav">
+        {{-- الرئيسية --}}
+        <a href="{{ route('dashboard') }}"
+           class="sidebar-link {{ request()->routeIs('dashboard') ? 'active' : '' }}">
+            <span class="sidebar-icon">🏠</span>
+            <span>{{ __('navigation.dashboard') ?? 'الرئيسية' }}</span>
+        </a>
+
+        {{-- معلوماتي --}}
+        <div class="sidebar-section">
+            <div class="sidebar-section-title">{{ __('navigation.my_info') }}</div>
+            <a href="{{ route('profile.edit') }}"
+               class="sidebar-link {{ request()->routeIs('profile.*') ? 'active' : '' }}">
+                <span class="sidebar-icon">👤</span>
+                <span>{{ __('navigation.my_profile') }}</span>
+            </a>
+        </div>
+
+        {{-- الإدارة (admin فقط) --}}
+        @if($role === 'admin')
+        <div class="sidebar-section">
+            <div class="sidebar-section-title">{{ __('navigation.management') ?? 'الإدارة' }}</div>
+            <a href="{{ route('admin.users.index') }}"
+               class="sidebar-link {{ request()->routeIs('admin.users.*') ? 'active' : '' }}">
+                <span class="sidebar-icon">👥</span>
+                <span>{{ __('navigation.users') ?? 'المستخدمون' }}</span>
+            </a>
+        </div>
+        @endif
+
+        {{-- التسجيل (admin + registrar) --}}
+        @if(in_array($role, ['admin','registrar']))
+        <div class="sidebar-section">
+            <div class="sidebar-section-title">{{ __('navigation.registration') ?? 'التسجيل' }}</div>
+            <a href="{{ route('students.index') }}"
+               class="sidebar-link {{ request()->routeIs('students.*') ? 'active' : '' }}">
+                <span class="sidebar-icon">🎓</span>
+                <span>{{ __('navigation.students') ?? 'الطلاب' }}</span>
+            </a>
+            <a href="{{ route('courses.index') }}"
+               class="sidebar-link {{ request()->routeIs('courses.*') ? 'active' : '' }}">
+                <span class="sidebar-icon">📚</span>
+                <span>{{ __('navigation.courses') ?? 'المقررات' }}</span>
+            </a>
+            <a href="{{ route('registrations.index') }}"
+               class="sidebar-link {{ request()->routeIs('registrations.*') ? 'active' : '' }}">
+                <span class="sidebar-icon">📝</span>
+                <span>{{ __('navigation.registrations') ?? 'التسجيلات' }}</span>
+            </a>
+            <a href="{{ route('programs.index') }}"
+               class="sidebar-link {{ request()->routeIs('programs.*') ? 'active' : '' }}">
+                <span class="sidebar-icon">🏫</span>
+                <span>{{ __('navigation.programs') ?? 'البرامج' }}</span>
+            </a>
+        </div>
+        @endif
+
+        {{-- المالية (admin + finance) --}}
+        @if(in_array($role, ['admin','finance']))
+        <div class="sidebar-section">
+            <div class="sidebar-section-title">{{ __('navigation.finance') ?? 'المالية' }}</div>
+            <a href="{{ route('invoices.index') }}"
+               class="sidebar-link {{ request()->routeIs('invoices.*') ? 'active' : '' }}">
+                <span class="sidebar-icon">🧾</span>
+                <span>{{ __('navigation.invoices') ?? 'الفواتير' }}</span>
+            </a>
+            <a href="{{ route('payments.index') }}"
+               class="sidebar-link {{ request()->routeIs('payments.*') ? 'active' : '' }}">
+                <span class="sidebar-icon">💳</span>
+                <span>{{ __('navigation.payments') ?? 'المدفوعات' }}</span>
+            </a>
+        </div>
+        @endif
+
+        {{-- النتائج (admin + results) --}}
+        @if(in_array($role, ['admin','results']))
+        <div class="sidebar-section">
+            <div class="sidebar-section-title">{{ __('navigation.results') ?? 'النتائج' }}</div>
+            <a href="{{ route('results.index') }}"
+               class="sidebar-link {{ request()->routeIs('results.*') ? 'active' : '' }}">
+                <span class="sidebar-icon">📊</span>
+                <span>{{ __('navigation.results') ?? 'النتائج' }}</span>
+            </a>
+        </div>
+        @endif
+
+        {{-- تقارير (الجميع) --}}
+        <div class="sidebar-section">
+            <div class="sidebar-section-title">{{ __('navigation.reports') ?? 'تقارير' }}</div>
+            <a href="{{ route('reports.index') }}"
+               class="sidebar-link {{ request()->routeIs('reports.*') ? 'active' : '' }}">
+                <span class="sidebar-icon">📈</span>
+                <span>{{ __('navigation.reports') ?? 'التقارير' }}</span>
+            </a>
+        </div>
+    </nav>
+
+    {{-- Footer: name + email + role --}}
+    <div class="sidebar-footer">
+        <div class="sidebar-user-name">{{ auth()->user()->name }}</div>
+        <div class="sidebar-user-email">{{ auth()->user()->email }}</div>
+        <div class="sidebar-user-role">
+            {{ __('navigation.role') }}: {{ __('roles.' . $role) ?? $role }}
+        </div>
+    </div>
+</aside>

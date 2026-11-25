@@ -1,0 +1,107 @@
+<?php
+
+namespace App\Models;
+
+use App\Enums\StudentGender;
+use App\Enums\StudentStatus;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
+
+class Student extends Model
+{
+    use HasFactory, SoftDeletes;
+
+    protected $fillable = [
+        // الحقول الأساسية
+        'user_id',
+        'program_id',
+        'student_number',
+        'national_id',
+        'date_of_birth',
+        'gender',
+        'phone',
+        'address',
+        'enrollment_date',
+        'status',
+        
+        // حقول استمارة 111 الجديدة
+        'full_name',
+        'occupation',
+        'appointment_date',
+        'state',
+        'district',
+        'block',
+        'certificate_type',
+        'certificate_date',
+        'certificate_score',
+        'academic_notes',
+        'registration_fee',
+        'registration_fee_words',
+        'tuition_fee',
+        'tuition_fee_words',
+        'registration_receipt_no',
+        'tuition_receipt_no',
+        'accountant_name',
+        'registrar_name',
+        'photo',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'gender'             => StudentGender::class,
+            'status'             => StudentStatus::class,
+            'date_of_birth'      => 'date',
+            'enrollment_date'    => 'date',
+            'appointment_date'   => 'date',
+            'certificate_date'   => 'date',
+            'registration_fee'   => 'decimal:2',
+            'tuition_fee'        => 'decimal:2',
+        ];
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function program(): BelongsTo
+    {
+        return $this->belongsTo(Program::class);
+    }
+
+    public function registrations(): HasMany
+    {
+        return $this->hasMany(Registration::class);
+    }
+
+    public function invoices(): HasMany
+    {
+        return $this->hasMany(Invoice::class);
+    }
+
+    public function scopeActive($query)
+    {
+        return $query->where('status', StudentStatus::Active->value);
+    }
+
+    public function scopeInProgram($query, int $programId)
+    {
+        return $query->where('program_id', $programId);
+    }
+
+    public function results(): \Illuminate\Database\Eloquent\Relations\HasManyThrough
+    {
+        return $this->hasManyThrough(
+            \App\Models\Result::class,
+            \App\Models\Registration::class,
+            'student_id',
+            'registration_id',
+            'id',
+            'id'
+        );
+    }
+}

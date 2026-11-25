@@ -1,0 +1,165 @@
+<?php
+
+namespace App\Models;
+
+use App\Enums\StudentGender;
+use App\Enums\StudentStatus;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Database\Eloquent\SoftDeletes;
+
+class Student extends Model
+{
+    use HasFactory, SoftDeletes;
+
+    /**
+     * The attributes that are mass assignable.
+     */
+    protected $fillable = [
+        // Core fields
+        'user_id',
+        'program_id',
+        'student_number',
+        'national_id',
+        'date_of_birth',
+        'gender',
+        'phone',
+        'address',
+        'enrollment_date',
+        'status',
+
+        // Contacts (new — Phase G4-ext)
+        'next_of_kin_name',
+        'next_of_kin_phone',
+        'mother_name',
+        'mother_phone',
+
+        // Form 111 fields
+        'full_name',
+        'occupation',
+        'appointment_date',
+        'state',
+        'district',
+        'block',
+        'certificate_type',
+        'certificate_date',
+        'certificate_score',
+        'academic_notes',
+        'registration_fee',
+        'registration_fee_words',
+        'tuition_fee',
+        'tuition_fee_words',
+        'registration_receipt_no',
+        'tuition_receipt_no',
+        'accountant_name',
+        'registrar_name',
+        'photo',
+
+        // Finance status (new — Phase G4-ext)
+        'finance_status',
+    ];
+
+    /**
+     * The attributes that should be cast.
+     */
+    protected function casts(): array
+    {
+        return [
+            'gender'           => StudentGender::class,
+            'status'           => StudentStatus::class,
+            'date_of_birth'    => 'date',
+            'enrollment_date'  => 'date',
+            'appointment_date' => 'date',
+            'certificate_date' => 'date',
+            'registration_fee' => 'decimal:2',
+            'tuition_fee'      => 'decimal:2',
+        ];
+    }
+
+    // ---------------------------------------------
+    // Relations
+    // ---------------------------------------------
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function program(): BelongsTo
+    {
+        return $this->belongsTo(Program::class);
+    }
+
+    public function registrations(): HasMany
+    {
+        return $this->hasMany(Registration::class);
+    }
+
+    public function invoices(): HasMany
+    {
+        return $this->hasMany(Invoice::class);
+    }
+
+    public function results(): HasManyThrough
+    {
+        return $this->hasManyThrough(
+            Result::class,
+            Registration::class,
+            'student_id',
+            'registration_id',
+            'id',
+            'id'
+        );
+    }
+
+    // ---------------------------------------------
+    // Scopes
+    // ---------------------------------------------
+
+    public function scopeActive($query)
+    {
+        return $query->where('status', StudentStatus::Active->value);
+    }
+
+    public function scopeInProgram($query, int $programId)
+    {
+        return $query->where('program_id', $programId);
+    }
+
+    public function scopePendingFinance($query)
+    {
+        return $query->where('finance_status', 'pending');
+    }
+
+    public function scopePaidFinance($query)
+    {
+        return $query->where('finance_status', 'paid');
+    }
+
+    public function scopePartialFinance($query)
+    {
+        return $query->where('finance_status', 'partial');
+    }
+
+    // ---------------------------------------------
+    // Accessors
+    // ---------------------------------------------
+
+    public function getFinanceStatusLabelAttribute(): string
+    {
+        return match ($this->finance_status) {
+            'paid'    => 'مدفوع',
+            'partial' => 'مدفوع جزئيًا',
+            'waived'  => 'معفى',
+            default   => 'معلق',
+        };
+    }
+
+    public function isFinancePending(): bool
+    {
+        return $this->finance_status === 'pending';
+    }
+}

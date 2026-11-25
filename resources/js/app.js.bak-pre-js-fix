@@ -1,0 +1,184 @@
+import '@fontsource/cairo/400.css';
+import '@fontsource/cairo/600.css';
+import '@fontsource/cairo/700.css';
+import '@fontsource/cairo/800.css';
+
+// ============================================================
+// THEME TOGGLE
+// ============================================================
+(function () {
+    const root = document.documentElement;
+    const btn = document.getElementById('theme-toggle');
+    function apply(theme) {
+        if (theme === 'dark') root.classList.add('dark');
+        else root.classList.remove('dark');
+        try { localStorage.setItem('theme', theme); } catch (e) {}
+        if (!btn) return;
+        const sun = btn.querySelector('[data-icon="sun"]');
+        const moon = btn.querySelector('[data-icon="moon"]');
+        if (sun && moon) {
+            sun.classList.toggle('hidden', theme === 'dark');
+            sun.classList.toggle('flex', theme !== 'dark');
+            moon.classList.toggle('hidden', theme !== 'dark');
+            moon.classList.toggle('flex', theme === 'dark');
+        }
+    }
+    apply(localStorage.getItem('theme') || 'light');
+    if (btn) {
+        btn.addEventListener('click', () => {
+            apply(root.classList.contains('dark') ? 'light' : 'dark');
+        });
+    }
+})();
+
+// ============================================================
+// SIDEBAR (collapse desktop + drawer mobile + body scroll lock)
+// ============================================================
+(function () {
+    const sidebar = document.getElementById('sidebar');
+    const btn = document.getElementById('sidebar-toggle');
+    const backdrop = document.getElementById('backdrop');
+    if (!sidebar || !btn) return;
+
+    function isMobile() { return window.matchMedia('(max-width: 1023px)').matches; }
+
+    // restore collapsed state on desktop
+    if (!isMobile() && localStorage.getItem('sidebar-collapsed') === '1') {
+        sidebar.classList.add('collapsed');
+    }
+
+    function openDrawer() {
+        sidebar.classList.add('mobile-open');
+        if (backdrop) backdrop.classList.add('show');
+        document.body.classList.add('sidebar-open');
+    }
+    function closeDrawer() {
+        sidebar.classList.remove('mobile-open');
+        if (backdrop) backdrop.classList.remove('show');
+        document.body.classList.remove('sidebar-open');
+    }
+
+    btn.addEventListener('click', () => {
+        if (isMobile()) {
+            if (sidebar.classList.contains('mobile-open')) closeDrawer();
+            else openDrawer();
+        } else {
+            sidebar.classList.toggle('collapsed');
+            try {
+                localStorage.setItem('sidebar-collapsed', sidebar.classList.contains('collapsed') ? '1' : '0');
+            } catch (e) {}
+        }
+    });
+
+    if (backdrop) backdrop.addEventListener('click', closeDrawer);
+
+    // Close drawer automatically when clicking any nav link (mobile)
+    sidebar.querySelectorAll('a[href]').forEach(link => {
+        link.addEventListener('click', () => {
+            if (isMobile()) closeDrawer();
+        });
+    });
+
+    // Close drawer on Escape
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && sidebar.classList.contains('mobile-open')) closeDrawer();
+    });
+
+    // If window grows to desktop, ensure mobile state cleaned up
+    window.addEventListener('resize', () => {
+        if (!isMobile()) {
+            sidebar.classList.remove('mobile-open');
+            if (backdrop) backdrop.classList.remove('show');
+            document.body.classList.remove('sidebar-open');
+        }
+    });
+})();
+
+// ============================================================
+// DROPDOWNS
+// ============================================================
+document.querySelectorAll('[data-dropdown-toggle]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const target = document.querySelector(btn.dataset.dropdownToggle);
+        document.querySelectorAll('.dropdown-menu.open').forEach(m => {
+            if (m !== target) m.classList.remove('open');
+        });
+        if (target) target.classList.toggle('open');
+    });
+});
+
+const notifBtn = document.getElementById('notif-toggle');
+if (notifBtn) {
+    notifBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const menu = document.getElementById('notif-menu');
+        document.querySelectorAll('.dropdown-menu.open').forEach(m => {
+            if (m !== menu) m.classList.remove('open');
+        });
+        if (menu) menu.classList.toggle('open');
+    });
+}
+
+document.addEventListener('click', () => {
+    document.querySelectorAll('.dropdown-menu.open').forEach(m => m.classList.remove('open'));
+});
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        document.querySelectorAll('.dropdown-menu.open').forEach(m => m.classList.remove('open'));
+    }
+});
+
+// ============================================================
+// TOASTS
+// ============================================================
+document.querySelectorAll('.toast[data-auto-dismiss]').forEach(t => {
+    const ms = parseInt(t.dataset.autoDismiss, 10) || 5000;
+    setTimeout(() => {
+        t.style.transition = 'all 0.3s ease';
+        t.style.opacity = '0';
+        t.style.transform = 'translateX(-20px)';
+        setTimeout(() => t.remove(), 300);
+    }, ms);
+});
+document.querySelectorAll('.toast-close').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const toast = btn.closest('.toast');
+        if (!toast) return;
+        toast.style.transition = 'all 0.3s ease';
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+    });
+});
+
+// ============================================================
+// NOTIFICATIONS BADGE
+// ============================================================
+(function () {
+    const badge = document.getElementById('notif-badge');
+    const list = document.querySelector('#notif-menu [data-notif-list]');
+    if (!badge && !list) return;
+    fetch('/api/notifications', {
+        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        credentials: 'same-origin',
+    })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+            if (!data) return;
+            if (badge && data.total > 0) {
+                badge.textContent = data.total > 99 ? '99+' : data.total;
+                badge.style.display = 'inline-flex';
+            }
+            if (list && data.items && data.items.length > 0) {
+                list.innerHTML = data.items.map(i =>
+                    '<a href="' + (i.url || '#') + '" class="dropdown-item">' +
+                    '<span>' + (i.icon || 'bell') + '</span>' +
+                    '<span style="flex:1">' + i.text + '</span>' +
+                    (i.count ? '<span class="badge badge-primary">' + i.count + '</span>' : '') +
+                    '</a>'
+                ).join('');
+            }
+        })
+        .catch(() => {});
+})();

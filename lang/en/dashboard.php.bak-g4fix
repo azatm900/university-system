@@ -1,0 +1,15 @@
+<?php
+return [
+    'title' => 'Dashboard',
+    'subtitle' => 'System overview',
+    'welcome' => 'Welcome',
+    'students' => 'Students',
+    'courses' => 'Courses',
+    'unpaid_invoices' => 'Unpaid invoices',
+    'pending_payments' => 'Pending payments',
+    'registrations' => 'Registrations',
+    'recent_activity' => 'Recent Activity',
+    'no_activity' => 'No recent activity',
+    'quick_actions' => 'Quick Actions',
+    'view_all' => 'View all',
+];

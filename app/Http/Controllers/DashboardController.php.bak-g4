@@ -1,0 +1,46 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Student;
+use App\Models\Course;
+use App\Models\Invoice;
+use App\Models\Payment;
+use App\Models\Registration;
+use Illuminate\Http\Request;
+
+class DashboardController extends Controller
+{
+    public function index(Request $request)
+    {
+        $stats = [
+            'students_count' => $this->safeCount(Student::class),
+            'courses_count' => $this->safeCount(Course::class),
+            'unpaid_invoices' => $this->safeWhereCount(Invoice::class, 'status', 'unpaid'),
+            'pending_payments' => $this->safeWhereCount(Payment::class, 'status', 'pending'),
+            'registrations_count' => $this->safeCount(Registration::class),
+        ];
+
+        $recentStudents = $this->safeRecent(Student::class, 5);
+
+        return view('dashboard.index', compact('stats', 'recentStudents'));
+    }
+
+    private function safeCount(string $model): int
+    {
+        if (!class_exists($model)) return 0;
+        try { return $model::count(); } catch (\Throwable $e) { return 0; }
+    }
+
+    private function safeWhereCount(string $model, string $col, $val): int
+    {
+        if (!class_exists($model)) return 0;
+        try { return $model::where($col, $val)->count(); } catch (\Throwable $e) { return 0; }
+    }
+
+    private function safeRecent(string $model, int $limit)
+    {
+        if (!class_exists($model)) return collect();
+        try { return $model::latest()->take($limit)->get(); } catch (\Throwable $e) { return collect(); }
+    }
+}
