@@ -1,0 +1,17 @@
+﻿.git
+.github
+.env
+.env.*
+!.env.example
+.env.bak*
+node_modules
+vendor
+tests
+storage/logs/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+_finance-lookup-dump
+*.bak
+*.bak-*
+*.BROKEN

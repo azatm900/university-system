@@ -22,3 +22,18 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Environment and secrets
+.env.*
+!.env.example
+
+# Backup files
+*.bak
+*.bak-*
+
+# Temporary files
+*.BROKEN
+
+# Credential files
+*كلمة المرور*
+*البريد الإلكتروني*
