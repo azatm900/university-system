@@ -13,6 +13,7 @@ use App\Http\Controllers\Finance\PaymentController;
 use App\Http\Controllers\Results\ResultController;
 use App\Http\Controllers\Results\ResultSheetController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\Student\StudentPortalController;
 
 Route::get('/login', fn () => view('auth.login'))->name('login');
 Route::post('/login', function (Request $request) {
@@ -22,7 +23,7 @@ Route::post('/login', function (Request $request) {
         return redirect()->intended(route('dashboard'));
     }
     return back()->withErrors(['email' => 'Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„Ø¯Ø®ÙˆÙ„ ØºÙŠØ± ØµØ­ÙŠØ­Ø©'])->onlyInput('email');
-})->name('login.attempt');
+})->middleware('throttle:login')->name('login.attempt');
 
 Route::post('/logout', function (Request $request) {
     auth()->logout();
@@ -63,6 +64,12 @@ Route::get('api/notifications', function () {
 Route::get('/', [\App\Http\Controllers\LandingController::class, 'index'])->name('landing');
 Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    Route::middleware('role:student')->prefix('student')->name('student.')->group(function () {
+        Route::get('results', [StudentPortalController::class, 'results'])->name('results.index');
+        Route::get('finance', [StudentPortalController::class, 'finance'])->name('finance.index');
+    });
+
 
     Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function () {
         Route::prefix('settings')->name('settings.')->group(function () {
@@ -149,7 +156,7 @@ Route::middleware(['auth', 'active'])->group(function () {
     });
 });
 // ─── Phase G1: Profile routes ─────────────────────────────────────
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/profile', [\App\Http\Controllers\ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [\App\Http\Controllers\ProfileController::class, 'update'])->name('profile.update');
     Route::get('/profile/password', [\App\Http\Controllers\ProfileController::class, 'changePassword'])->name('profile.password');
@@ -164,4 +171,4 @@ Route::middleware('guest')->group(function () {
 });
 
 // ─── G3-Fix: admin/users reset-password-form (standalone) ───
-Route::middleware('auth')->get('admin/users/{user}/reset-password-form', [\App\Http\Controllers\Admin\UserController::class, 'showResetPasswordForm'])->name('admin.users.reset-password-form');
+Route::middleware(['auth', 'active', 'role:admin'])->get('admin/users/{user}/reset-password-form', [\App\Http\Controllers\Admin\UserController::class, 'showResetPasswordForm'])->name('admin.users.reset-password-form');

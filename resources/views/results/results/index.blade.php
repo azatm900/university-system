@@ -1,55 +1,186 @@
 @extends('layouts.app')
-@section('title', 'النتائج')
+
+@section('title', __('results_ui.title'))
+
 @section('content')
-<div class="card overflow-hidden">
-    <div class="p-4 border-b flex items-center justify-between">
-        <a href="{{ route('results.results.create') }}" class="btn-primary">+ نتيجة جديدة</a>
+<div class="space-y-6">
+
+    <x-page-header
+        :title="__('results_ui.title')"
+        :subtitle="__('results_ui.subtitle')"
+    >
+        <x-button variant="primary" :href="route('results.results.create')">
+            <x-icon name="plus" :size="16" />
+            <span class="ms-1">{{ __('results_ui.create') }}</span>
+        </x-button>
+    </x-page-header>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <x-stat-card
+            :label="__('results_ui.results_count')"
+            :value="$results->total()"
+            icon-name="clipboard-list"
+        />
+        <x-stat-card
+            :label="__('results_ui.showing')"
+            :value="$results->count()"
+            icon-name="list-checks"
+        />
     </div>
-    <table class="w-full table-rh">
-        <thead><tr><th>#</th><th>الطالب</th><th>المقرر</th><th>الفصل</th><th>المجموع</th><th>التقدير</th><th>الحالة</th><th>النشر</th><th>إجراءات</th></tr></thead>
-        <tbody>
-        @forelse (($results ?? \App\Models\Result::with(['registration.student.user','registration.course','registration.semester'])->latest()->paginate(20)) as $r)
-            <tr>
-                <td>{{ $r->id }}</td>
-                <td>{{ $r->registration?->student?->user?->name ?? '—' }}</td>
-                <td>{{ $r->registration?->course?->name ?? '—' }}</td>
-                <td>{{ $r->registration?->semester?->name ?? '—' }}</td>
-                <td>{{ $r->total_score }}</td>
-                <td>{{ $r->grade }}</td>
-                <td>@include('partials.enum-label', ['value' => $r->status])</td>
-                <td>
-                    @if ($r->published_at)
-                        <span class="text-green-700 text-xs font-semibold">منشور</span>
-                    @else
-                        <span class="text-gray-500 text-xs">غير منشور</span>
-                    @endif
-                </td>
-                <td class="space-x-2 space-x-reverse">
-                    <a href="{{ route('results.results.show', $r) }}" class="text-maroon-800 hover:underline text-sm">عرض</a>
-                    <a href="{{ route('results.results.edit', $r) }}" class="text-maroon-800 hover:underline text-sm">تعديل</a>
-                    @if (!$r->published_at && $r->status !== 'incomplete')
-                        <form action="{{ route('results.results.publish', $r) }}" method="POST" class="inline">
-                            @csrf
-                            <button class="text-green-700 hover:underline text-sm">نشر</button>
-                        </form>
-                    @endif
-                    @if ($r->published_at)
-                        <form action="{{ route('results.results.unpublish', $r) }}" method="POST" class="inline">
-                            @csrf
-                            <button class="text-orange-700 hover:underline text-sm">إلغاء النشر</button>
-                        </form>
-                    @endif
-                    <form action="{{ route('results.results.destroy', $r) }}" method="POST" class="inline" onsubmit="return confirm('تأكيد؟')">
-                        @csrf @method('DELETE')
-                        <button class="text-red-600 hover:underline text-sm">حذف</button>
-                    </form>
-                </td>
-            </tr>
-        @empty
-            <tr><td colspan="9" class="text-center text-gray-500 py-8">لا توجد نتائج</td></tr>
-        @endforelse
-        </tbody>
-    </table>
-    <div class="p-4 border-t">{{ ($results ?? \App\Models\Result::paginate(20))->links() }}</div>
+
+    <x-table-wrapper>
+        <table class="table w-full text-sm">
+            <thead>
+                <tr>
+                    <th class="whitespace-nowrap">#</th>
+                    <th class="whitespace-nowrap">{{ __('results_ui.student') }}</th>
+                    <th class="whitespace-nowrap">{{ __('results_ui.course') }}</th>
+                    <th class="whitespace-nowrap">{{ __('results_ui.semester') }}</th>
+                    <th class="whitespace-nowrap">{{ __('results_ui.total_score') }}</th>
+                    <th class="whitespace-nowrap">{{ __('results_ui.grade') }}</th>
+                    <th class="whitespace-nowrap">{{ __('results_ui.status') }}</th>
+                    <th class="whitespace-nowrap">{{ __('results_ui.publication') }}</th>
+                    <th class="whitespace-nowrap">{{ __('results_ui.actions') }}</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                @forelse ($results as $r)
+                    <tr>
+                        <td class="whitespace-nowrap">{{ $r->id }}</td>
+
+                        <td class="font-medium">
+                            {{ $r->registration?->student?->full_name
+                                ?? $r->registration?->student?->user?->name
+                                ?? __('results_ui.not_available') }}
+                        </td>
+
+                        <td>
+                            {{ $r->registration?->course?->name
+                                ?? __('results_ui.not_available') }}
+                        </td>
+
+                        <td>
+                            {{ $r->registration?->semester?->name
+                                ?? __('results_ui.not_available') }}
+                        </td>
+
+                        <td class="font-semibold whitespace-nowrap">
+                            {{ $r->total_score ?? '—' }}
+                        </td>
+
+                        <td class="font-semibold whitespace-nowrap">
+                            {{ $r->grade ?? '—' }}
+                        </td>
+
+                        <td class="whitespace-nowrap">
+                            @include('partials.enum-label', ['value' => $r->status])
+                        </td>
+
+                        <td class="whitespace-nowrap">
+                            @if ($r->published_at)
+                                <x-badge color="success">
+                                    {{ __('results_ui.published') }}
+                                </x-badge>
+                            @else
+                                <x-badge color="warning">
+                                    {{ __('results_ui.unpublished') }}
+                                </x-badge>
+                            @endif
+                        </td>
+
+                        <td>
+                            <div class="flex items-center gap-2 flex-wrap">
+
+                                <x-button
+                                    variant="secondary"
+                                    size="sm"
+                                    :href="route('results.results.show', $r)"
+                                >
+                                    {{ __('results_ui.view') }}
+                                </x-button>
+
+                                @if (!$r->published_at)
+                                    <x-button
+                                        variant="secondary"
+                                        size="sm"
+                                        :href="route('results.results.edit', $r)"
+                                    >
+                                        {{ __('results_ui.edit') }}
+                                    </x-button>
+                                @endif
+
+                                @if (!$r->published_at && $r->status !== 'incomplete')
+                                    <form
+                                        action="{{ route('results.results.publish', $r) }}"
+                                        method="POST"
+                                        class="inline"
+                                    >
+                                        @csrf
+                                        <button
+                                            type="submit"
+                                            class="btn btn-sm btn-primary"
+                                        >
+                                            {{ __('results_ui.publish') }}
+                                        </button>
+                                    </form>
+                                @endif
+
+                                @if ($r->published_at)
+                                    <form
+                                        action="{{ route('results.results.unpublish', $r) }}"
+                                        method="POST"
+                                        class="inline"
+                                    >
+                                        @csrf
+                                        <button
+                                            type="submit"
+                                            class="btn btn-sm btn-secondary"
+                                        >
+                                            {{ __('results_ui.unpublish') }}
+                                        </button>
+                                    </form>
+                                @endif
+
+                                @if (!$r->published_at)
+                                    <form
+                                        action="{{ route('results.results.destroy', $r) }}"
+                                        method="POST"
+                                        class="inline"
+                                        onsubmit="return confirm(@js(__('results_ui.confirm_delete')))"
+                                    >
+                                        @csrf
+                                        @method('DELETE')
+                                        <button
+                                            type="submit"
+                                            class="text-red-600 hover:underline text-sm font-medium"
+                                        >
+                                            {{ __('results_ui.delete') }}
+                                        </button>
+                                    </form>
+                                @endif
+
+                            </div>
+                        </td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="9" class="py-10">
+                            <x-empty-state
+                                icon-name="clipboard-list"
+                                :title="__('results_ui.title')"
+                                :message="__('results_ui.empty')"
+                            />
+                        </td>
+                    </tr>
+                @endforelse
+            </tbody>
+        </table>
+
+        <x-slot name="footer">
+            {{ $results->links() }}
+        </x-slot>
+    </x-table-wrapper>
+
 </div>
 @endsection

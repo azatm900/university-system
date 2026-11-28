@@ -21,6 +21,6 @@ return [
     'active' => 'نشط',
     'inactive' => 'غير نشط',
     'close' => 'إغلاق',
-    'coming_soon' => 'قريبًا',
+    'coming_soon' => 'قريباً',
     'close_all' => 'إغلاق الكل',
 ];

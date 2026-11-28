@@ -16,7 +16,7 @@
         // 3. النتائج
         ['route'=>'results.results.index','key'=>'results','icon'=>'award','match'=>'results.results.*'],
                 ['route'=>'results.sheet.index','key'=>'result_sheet','icon'=>'chart-bar','match'=>'results.sheet.*'],
-                ['route'=>'admin.users.create','key'=>'results_staff','icon'=>'user-plus','match'=>'admin.users.create'],
+
         // 4. البرامج
         ['route'=>'registrar.programs.index','key'=>'programs','icon'=>'library','match'=>'registrar.programs.*'],
         // 5. المقررات
@@ -107,6 +107,33 @@
         @endif
 
         {{-- 2b. Role group (registrar / finance / results) --}}
+        {{-- Student-only navigation --}}
+        @if($role === 'student')
+            <div class="sidebar-section">
+                <div class="sidebar-group-title">
+                    <span class="sidebar-group-icon"><x-icon name="graduation-cap" :size="13" :stroke-width="2.2" /></span>
+                    <span>{{ __('student_portal.student_group') }}</span>
+                </div>
+                <ul class="space-y-0.5">
+                    <li>
+                        <a href="{{ route('student.results.index') }}"
+                           class="sidebar-link {{ request()->routeIs('student.results.*') ? 'active' : '' }}"
+                           title="{{ __('student_portal.results_nav') }}">
+                            <span class="sidebar-icon"><x-icon name="award" :size="18" /></span>
+                            <span class="label">{{ __('student_portal.results_nav') }}</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ route('student.finance.index') }}"
+                           class="sidebar-link {{ request()->routeIs('student.finance.*') ? 'active' : '' }}"
+                           title="{{ __('student_portal.finance_nav') }}">
+                            <span class="sidebar-icon"><x-icon name="wallet" :size="18" /></span>
+                            <span class="label">{{ __('student_portal.finance_nav') }}</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        @endif
         @foreach ($groups as $group)
             <div class="sidebar-section">
                 <div class="sidebar-group-title">
